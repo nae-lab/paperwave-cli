@@ -1,0 +1,29 @@
+{
+  "name": "llm-radio-node-cli",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "main": "ts-node -r \"dotenv/config\" main.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "packageManager": "pnpm@9.4.0",
+  "devDependencies": {
+    "@tsconfig/node-lts-strictest-esm": "^18.12.1",
+    "@types/node": "20",
+    "@types/spinnies": "^0.5.3",
+    "@types/yargs": "^17.0.32",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.2"
+  },
+  "dependencies": {
+    "consola": "^3.2.3",
+    "dotenv": "^16.4.5",
+    "openai": "^4.52.2",
+    "spinnies": "^0.5.1",
+    "tsconfig-paths": "^4.2.0",
+    "yargs": "^17.7.2"
+  }
+}
