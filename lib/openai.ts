@@ -5,8 +5,9 @@ import {
   RunCreateParamsBaseStream,
 } from "openai/lib/AssistantStream";
 
-import { consola } from "./consola";
+import { consola } from "./logging";
 import { spinnies } from "./spinnies";
+import { argv } from "./args";
 
 export const openai = new OpenAI();
 
@@ -41,6 +42,17 @@ export async function streamAndWait(
       }
     });
 
+    stream.on("runStepDone", (runStepDelta, snapshot) => {
+      consola.withTag(threadId).verbose(runStepDelta.step_details);
+      if (snapshot.status === "failed") {
+        reject(
+          new Error(
+            `${snapshot.last_error?.code}: ${snapshot.last_error?.message}`
+          )
+        );
+      }
+    });
+
     stream.on("error", (error) => {
       reject(error);
     });
@@ -63,20 +75,29 @@ export async function runAssistant(
   const spinnieName = thread.id;
   spinnies.add(spinnieName, { text: `${thread.id}: start` });
 
-  const run = await streamAndWait(
-    thread.id,
-    {
-      assistant_id: assistant_id,
-      model: "gpt-4o",
-      tool_choice: {
-        type: "file_search",
+  const model = (await argv).gptModel;
+  consola.debug(`Using model: ${model}`);
+
+  try {
+    await streamAndWait(
+      thread.id,
+      {
+        assistant_id: assistant_id,
+        model: model,
+        tool_choice: {
+          type: "file_search",
+        },
+        response_format: {
+          type: "text",
+        },
       },
-      response_format: {
-        type: "text",
-      },
-    },
-    spinnieName
-  );
+      spinnieName
+    );
+  } catch (error) {
+    consola.withTag(thread.id).error(error);
+    spinnies.fail(spinnieName, { text: `${thread.id}: failed` });
+    return [];
+  }
 
   // 全てのメッセージを取得する
   const results = await openai.beta.threads.messages.list(thread.id, {

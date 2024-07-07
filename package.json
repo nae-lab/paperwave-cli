@@ -15,10 +15,12 @@
     "@types/node": "20",
     "@types/spinnies": "^0.5.3",
     "@types/yargs": "^17.0.32",
+    "json-log-viewer": "^0.1.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.2"
   },
   "dependencies": {
+    "app-root-path": "^3.1.0",
     "consola": "^3.2.3",
     "dotenv": "^16.4.5",
     "openai": "^4.52.2",

@@ -1,13 +1,9 @@
 import { argv } from "./lib/args";
-import { consola, str2logLevel } from "./lib/consola";
+import { consola } from "./lib/logging";
 import { LogLevel } from "consola";
 import { runAssistant } from "./lib/openai";
-import { spinnies } from "./lib/spinnies";
 
 async function main() {
-  // Set log level to passed in artgument (--log)
-  consola.level = str2logLevel((await argv).log as string) as LogLevel;
-
   consola.start("Start running assistant...");
   const as1 = await runAssistant("asst_ZDACE7vUVXkdOHSX0Nck5dkX", [
     {
