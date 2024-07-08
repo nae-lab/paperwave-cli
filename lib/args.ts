@@ -17,5 +17,10 @@ export const argv = yargs(hideBin(process.argv))
       default: "gpt-4o",
       choices: ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"],
     },
+    papers: {
+      alias: "p",
+      type: "array",
+      default: [],
+    },
   })
   .parse();

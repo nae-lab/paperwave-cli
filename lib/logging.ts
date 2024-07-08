@@ -33,7 +33,7 @@ const timezoneMinutes = (Math.abs(timezoneOffset) % 60)
   .toString()
   .padStart(2, "0");
 const timezoneSign = timezoneOffset < 0 ? "+" : "-";
-const runId = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}${timezoneSign}${timezoneHours}-${timezoneMinutes}`;
+export const runId = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}${timezoneSign}${timezoneHours}-${timezoneMinutes}`;
 export const runLogDir = path.join(logDir, runId); // export for use in other files to store log files
 fs.mkdirSync(runLogDir);
 
