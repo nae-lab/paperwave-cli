@@ -50,7 +50,7 @@ async function logCodeSnapshot() {
   fs.writeFileSync(path.join(runLogDir, "git_status.txt"), gitStatus);
 
   // Save main.ts to the runLogDir
-  const mainTsPath = path.join(appRootPath.path, "main.ts");
+  const mainTsPath = path.join(appRootPath.path, "src/main.ts");
   const mainTs = fs.readFileSync(mainTsPath);
   fs.writeFileSync(path.join(runLogDir, "main.ts"), mainTs);
 }

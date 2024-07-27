@@ -7,11 +7,15 @@ import {
   AssistantStream,
   RunCreateParamsBaseStream,
 } from "openai/lib/AssistantStream";
+import CLIProgress from "cli-progress";
 import { randomUUID } from "crypto";
 
 import { openai } from "../openai";
+import { ChatCompletion } from "./chat";
+import { parseJSON, extractJSONString } from "../json";
 import { consola, runId } from "../logging";
 import { spinnies } from "../spinnies";
+import { SingleBar } from "../progress";
 import { argv } from "../args";
 
 export class FileSearchAssistant {
@@ -19,6 +23,7 @@ export class FileSearchAssistant {
   readonly name: string;
   filePaths: string[] = [];
   uploadedFiles: OpenAI.Files.FileObject[] = [];
+  messages: OpenAI.Beta.Threads.Messages.Message[] = [];
   instructions: string;
   temperature?: number;
   topP?: number;
@@ -38,14 +43,23 @@ export class FileSearchAssistant {
   }
 
   async init() {
+    const bar = new SingleBar(
+      {
+        format: "[{bar}] {percentage}% | ETA: {eta}s | {value}/{total}",
+        stopOnComplete: true,
+      },
+      CLIProgress.Presets.shades_classic
+    );
+
+    bar.start(this.filePaths.length, 0);
+
     const uploadPromises = this.filePaths.map(async (filePath) => {
-      spinnies.add(filePath, { text: `Uploading ${filePath}` });
       const uploadedFile = await this.uploadFile(filePath);
-      spinnies.succeed(filePath, {
-        text: `Uploaded ${filePath} as ${uploadedFile.id}`,
-      });
+      bar.increment(1, { filename: path.basename(filePath) });
+      return uploadedFile;
     });
-    await Promise.all(uploadPromises);
+    const uploadedFiles = await Promise.all(uploadPromises);
+    bar.stop();
 
     await this.createAssistant();
   }
@@ -55,8 +69,14 @@ export class FileSearchAssistant {
     await this.deleteFiles();
   }
 
+  reset() {
+    this.messages = [];
+  }
+
   private async uploadFile(filePath: string): Promise<OpenAI.Files.FileObject> {
     const absolutePath = path.resolve(process.cwd(), filePath);
+
+    consola.debug(`Uploading file ${filePath}`);
     const file = await openai.files
       .create({
         file: fs.createReadStream(absolutePath),
@@ -103,8 +123,8 @@ export class FileSearchAssistant {
       temperature: this.temperature,
       top_p: this.topP,
     });
-    consola.debug(`Assistant ${assistant.id} created`);
-    consola.verbose(assistant);
+    consola.withTag(assistant.id).debug(`Assistant ${assistant.id} created`);
+    consola.withTag(assistant.id).verbose(assistant);
     this.assistant = assistant;
   }
 
@@ -115,27 +135,70 @@ export class FileSearchAssistant {
 
     const assistant_id = this.assistant.id;
     await openai.beta.assistants.del(assistant_id).then((result) => {
-      consola.debug(`Assistant ${assistant_id} deleted`);
+      consola.withTag(assistant_id).debug(`Assistant ${assistant_id} deleted`);
       this.assistant = undefined;
     });
   }
 
-  async runAssistant(messages: ThreadCreateParams.Message[]) {
+  async runAssistant(
+    messages: ThreadCreateParams.Message[]
+  ): Promise<OpenAI.Beta.Threads.Messages.Message[]> {
     if (!this.assistant) {
       throw new Error("Assistant is not initialized");
     }
 
+    const context = this.messages
+      .map((message): ThreadCreateParams.Message[] => {
+        let contents: ThreadCreateParams.Message[] = [];
+        if (message.content.length > 0) {
+          contents = message.content.map((content) => {
+            if (content.type === "text") {
+              return {
+                role: message.role,
+                content: content.text.value.toString(),
+              };
+            } else {
+              return {
+                role: message.role,
+                content: JSON.stringify(content),
+              };
+            }
+          });
+        }
+
+        return contents;
+      })
+      .flat()
+      .slice(-30); // limit context to 30 messages to avoid hitting the array maximum length 32 limit
+
+    const params: ThreadCreateParams = {
+      messages: [...context, ...messages] as ThreadCreateParams.Message[],
+    };
+    consola.verbose(
+      "Creating thread with messages: ",
+      JSON.stringify(params, null, 2)
+    );
     const thread = await openai.beta.threads.create({
-      messages: messages,
+      messages: params.messages,
     });
-    consola.withTag(thread.id).debug("Thread created");
+    consola
+      .withTag([this.assistant?.id, thread.id].join(","))
+      .debug("Thread created with id: ", thread.id);
 
     const spinnieName = thread.id;
     spinnies.add(spinnieName, { text: `${thread.id}: start` });
 
     const model = (await argv).gptModel;
-    consola.debug(`Using model: ${model}`);
+    consola
+      .withTag([this.assistant?.id, thread.id].join(","))
+      .debug(`Using model: ${model}`);
 
+    // TODO: Incompleteの時に再度テキスト生成をする
+    let results: OpenAI.Beta.Threads.Messages.Message[] = [];
+    // while (
+    //   results.at(-1)?.completed_at &&
+    //   results.at(-1)?.incomplete_at === null
+    // ) {
     try {
       await this.streamAndWait(
         thread.id,
@@ -152,24 +215,62 @@ export class FileSearchAssistant {
         spinnieName
       );
     } catch (error) {
-      consola.withTag(thread.id).error(error);
+      consola.withTag([this.assistant?.id, thread.id].join(",")).error(error);
       spinnies.fail(spinnieName, { text: `${thread.id}: failed` });
       return [];
     }
+    consola
+      .withTag([this.assistant?.id, thread.id].join(","))
+      .debug("Text generation stopped");
 
     // 全てのメッセージを取得する
-    const results = await openai.beta.threads.messages.list(thread.id, {
+    const runResult = await openai.beta.threads.messages.list(thread.id, {
       order: "asc",
     });
-    consola.withTag(thread.id).debug("Messages retrieved");
-    consola.withTag(thread.id).verbose(results.data);
-    const assistantMessages = results.data.filter(
+    consola
+      .withTag([this.assistant?.id, thread.id].join(","))
+      .debug(`Retrieved all messages from thread ${thread.id}`);
+    consola
+      .withTag([this.assistant?.id, thread.id].join(","))
+      .verbose(runResult.data);
+    const assistantMessages = runResult.data.filter(
       (message) => message.role === "assistant"
     );
 
+    this.messages.push(...runResult.data);
+    results.push(...assistantMessages);
+    // }
+
     spinnies.succeed(spinnieName, { text: `${thread.id}: finished` });
 
-    return assistantMessages;
+    return results;
+  }
+
+  async parseMessage<T>(at: number): Promise<T | undefined> {
+    const message = this.messages
+      .filter((message) => message.role === "assistant")
+      .at(at);
+    let text = "";
+    try {
+      if (
+        message &&
+        message.content.length > 0 &&
+        message.content[0].type === "text"
+      ) {
+        text = message.content[0].text.value.toString();
+        // extract json from text
+        text = extractJSONString(text);
+
+        return (await parseJSON(text)) as T;
+      } else {
+        consola
+          .withTag(message?.id.toString() ?? "")
+          .warn(`Message is not text: ${message}`);
+      }
+    } catch (error) {
+      consola.error(text);
+      throw error;
+    }
   }
 
   async streamAndWait(
@@ -192,6 +293,18 @@ export class FileSearchAssistant {
             .replace(/\s/g, " ")}`;
           spinnies.update(spinnieName, { text: status });
           snapshot_length = snapshot.value.length;
+        }
+      });
+
+      stream.on("messageDone", (message) => {
+        consola.withTag(threadId).verbose("Message done", message);
+
+        if (message.incomplete_at) {
+          consola
+            .withTag(threadId)
+            .warn(
+              `Message incomplete due to ${message.incomplete_details?.reason}`
+            );
         }
       });
 
