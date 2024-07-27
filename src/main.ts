@@ -1,18 +1,13 @@
 import { PromisePool } from "@supercharge/promise-pool";
-import { ThreadCreateParams } from "openai/resources/beta/index";
-import OpenAI from "openai";
 import { Type, type Static } from "@sinclair/typebox";
 import appRootPath from "app-root-path";
 
 import { FileSearchAssistant } from "./openai/assistant";
-import { ChatCompletion } from "./openai/chat";
 import { argv } from "./args";
 import { consola, runLogDir } from "./logging";
 import { spinnies } from "./spinnies";
-import { SingleBar } from "./progress";
 import { AudioGenerator, TurnSchema, Turn } from "./audio";
 import path from "path";
-import { title } from "process";
 
 const ProgramWriterOutputSchema = Type.Object({
   totalTurns: Type.Number({
@@ -354,6 +349,9 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
     "script_writer"
   );
 
+  // ここから処理を開始 ----------------------------------------------------------
+
+  // アシスタントの初期化
   await Promise.all([
     programWriter.init(),
     authorExtractor.init(),
@@ -456,6 +454,7 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
       scriptChunks[index] = result.script;
     });
 
+  // スクリプトのチャンクを1次元配列に変換して，全体のスクリプトを生成
   const script = scriptChunks.flat();
 
   consola.verbose(script);
