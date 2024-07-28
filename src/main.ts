@@ -1,13 +1,14 @@
+import path from "path";
 import { PromisePool } from "@supercharge/promise-pool";
 import { Type, type Static } from "@sinclair/typebox";
 import appRootPath from "app-root-path";
+import sanitize from "sanitize-filename";
 
 import { FileSearchAssistant } from "./openai/assistant";
 import { argv } from "./args";
-import { consola, runLogDir } from "./logging";
+import { consola, runId, runLogDir } from "./logging";
 import { spinnies } from "./spinnies";
 import { AudioGenerator, TurnSchema, Turn } from "./audio";
-import path from "path";
 
 const ProgramWriterOutputSchema = Type.Object({
   totalTurns: Type.Number({
@@ -407,7 +408,7 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
         content: [
           {
             type: "text",
-            text: "論文のタイトルを40文字以内のファイル名にできる安全な文字列としてjsonで出力",
+            text: "論文のタイトルをjsonで出力",
           },
         ],
       },
@@ -417,9 +418,14 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
   const authorText = (
     await authorExtractor.parseMessage<InfoExtractorOutput>(-1)
   )?.result;
-  const outputFileNameText = (
+  const paperTitleText = (
     await titleExtractor.parseMessage<InfoExtractorOutput>(-1)
   )?.result;
+  const outputFileNameText =
+    sanitize(paperTitleText ?? "output")
+      .replace(".", "_")
+      .replace(/\s+/g, "_")
+      .slice(0, 40) + `_${runId}`;
 
   consola.info("脚本を生成します");
   let scriptChunks: Turn[][] = [];

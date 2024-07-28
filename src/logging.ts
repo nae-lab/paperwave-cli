@@ -1,9 +1,11 @@
 import process from "process";
 import { exec as _exec } from "child_process";
 import fs from "fs";
+import os from "os";
 import path from "path";
 import util from "util";
 import appRootPath from "app-root-path";
+import sanitize from "sanitize-filename";
 
 import { createConsola, LogLevels, LogType, ConsolaReporter } from "consola";
 
@@ -33,7 +35,9 @@ const timezoneMinutes = (Math.abs(timezoneOffset) % 60)
   .toString()
   .padStart(2, "0");
 const timezoneSign = timezoneOffset < 0 ? "+" : "-";
-export const runId = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}${timezoneSign}${timezoneHours}-${timezoneMinutes}`;
+const hostname = os.hostname();
+const runIdUnsanitized = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}${timezoneSign}${timezoneHours}-${timezoneMinutes}-${hostname}`;
+export const runId = sanitize(runIdUnsanitized).replace(".", "_").replace(/\s/g, "_").slice(0, 120); // export for use in other files to store log files
 export const runLogDir = path.join(logDir, runId); // export for use in other files to store log files
 fs.mkdirSync(runLogDir);
 
