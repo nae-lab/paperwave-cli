@@ -462,10 +462,7 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
   // Generate audio
   consola.info("Generating audio");
   const audioOutputDir = path.join(runLogDir, "output_audio");
-  const bgmPath = path.join(
-    appRootPath.path,
-    "assets/podcast-jazz-music-168726.mp3"
-  );
+  const bgmPath = path.join(appRootPath.path, (await argv).bgm as string);
   const audioGenerator = new AudioGenerator(
     script,
     audioOutputDir,
