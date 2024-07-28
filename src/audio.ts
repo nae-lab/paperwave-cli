@@ -173,7 +173,7 @@ export class AudioGenerator {
     // Make BGM duration longer than the input audio
     const bgmDuration = await this.getAudioDuration(inputFilename);
     const bgmExtendedFilename = path.join(this.workDir, "bgm_extended.wav");
-    const extendCommand = `${ffmpegPath} -i ${bgmFilename} -filter_complex "aloop=loop=-1:size=${bgmDuration}:start=0" -y ${bgmExtendedFilename}`;
+    const extendCommand = `${ffmpegPath} -stream_loop -1 -t ${bgmDuration} -i ${bgmFilename} -y ${bgmExtendedFilename}`;
     consola.debug(`Running command: ${extendCommand}`);
     await exec(extendCommand);
 
