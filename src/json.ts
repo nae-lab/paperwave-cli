@@ -1,3 +1,5 @@
+import { jsonrepair } from "jsonrepair";
+
 import { ChatCompletion } from "./openai/chat";
 import { consola } from "./logging";
 import { argv } from "./args";
@@ -23,9 +25,17 @@ export async function parseJSON<T>(json: string) {
       consola.warn(`Message is not valid JSON: ${json}`);
 
       // try fixing the JSON
-      consola.info("Trying to fix JSON");
-      const chatCompletion = new ChatCompletion(
-        `
+      consola.info("Trying to fix JSON by jsonrepair");
+      const fixedJSON = jsonrepair(json);
+
+      try {
+        data = JSON.parse(fixedJSON) as T;
+      } catch (error) {
+        consola.warn("Failed to fix JSON by jsonrepair");
+        consola.info("Trying to fix JSON by GPT");
+
+        const chatCompletion = new ChatCompletion(
+          `
 # Role
 JSON Fixer
 
@@ -48,22 +58,26 @@ Valid JSON text
 {"totalTurns":18,"program":[{"title":"研究の目的と背景","conversationTurns":6},{"title":"教育実践におけるAliceの効果","conversationTurns":6}]}
 \`\`\`
 `,
-        {
-          temperature: 0.1,
+          {
+            temperature: 0.25,
+            response_format: {
+              type: "json_object",
+            },
+          }
+        );
+        const fixResult = (
+          await chatCompletion.completion("Fix the following JSON\n\n" + json)
+        ).content?.toString();
+        if (!fixResult) {
+          throw new Error("Failed to fix JSON");
         }
-      );
-      const fixResult = (
-        await chatCompletion.completion(json)
-      ).content?.toString();
-      if (!fixResult) {
-        throw new Error("Failed to fix JSON");
-      }
-      const fixedString = extractJSONString(fixResult);
+        const fixedString = extractJSONString(fixResult);
 
-      if (fixedString) {
-        data = JSON.parse(fixedString) as T;
-      } else {
-        throw new Error("Failed to fix JSON");
+        if (fixedString) {
+          data = JSON.parse(fixedString) as T;
+        } else {
+          throw new Error("Failed to fix JSON");
+        }
       }
     } else {
       throw error;

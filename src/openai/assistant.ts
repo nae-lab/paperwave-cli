@@ -18,11 +18,14 @@ import { spinnies } from "../spinnies";
 import { SingleBar } from "../progress";
 import { argv } from "../args";
 
+export const ASSISTANT_NAME_PREFIX = "llm-radio-file-search";
+
 export class FileSearchAssistant {
   assistant?: OpenAI.Beta.Assistants.Assistant;
   readonly name: string;
   filePaths: string[] = [];
   uploadedFiles: OpenAI.Files.FileObject[] = [];
+  vectorStore?: OpenAI.Beta.VectorStores.VectorStore;
   messages: OpenAI.Beta.Threads.Messages.Message[] = [];
   instructions: string;
   temperature?: number;
@@ -35,7 +38,9 @@ export class FileSearchAssistant {
     temperature?: number,
     topP?: number
   ) {
-    this.name = name ?? `file_search_${runId}_${randomUUID()}`;
+    this.name =
+      `${ASSISTANT_NAME_PREFIX}_` +
+      (name ?? `file_search_${runId}_${randomUUID()}`);
     this.filePaths = filePaths;
     this.instructions = instructions;
     this.temperature = temperature;
@@ -65,8 +70,9 @@ export class FileSearchAssistant {
   }
 
   async deinit() {
-    await this.deleteAssistant();
     await this.deleteFiles();
+    await this.deleteVectorStore();
+    await this.deleteAssistant();
   }
 
   reset() {
@@ -106,17 +112,31 @@ export class FileSearchAssistant {
   }
 
   private async createAssistant() {
+    if (this.uploadedFiles.length === 0) {
+      consola.warn("No files uploaded");
+    }
+
+    const vectorStore = await openai.beta.vectorStores.create({
+      name: this.name,
+      file_ids: this.uploadedFiles.map((file) => file.id),
+      expires_after: {
+        anchor: "last_active_at",
+        days: 1,
+      },
+    });
+    consola
+      .withTag(vectorStore.id)
+      .debug(`Vector store ${vectorStore.id} created`);
+    consola.withTag(vectorStore.id).verbose(vectorStore);
+    this.vectorStore = vectorStore;
+
     const assistant = await openai.beta.assistants.create({
       instructions: this.instructions,
       name: this.name,
       tools: [{ type: "file_search" }],
       tool_resources: {
         file_search: {
-          vector_stores: [
-            {
-              file_ids: this.uploadedFiles.map((file) => file.id),
-            },
-          ],
+          vector_store_ids: [vectorStore.id],
         },
       },
       model: (await argv).gptModel,
@@ -126,6 +146,8 @@ export class FileSearchAssistant {
     consola.withTag(assistant.id).debug(`Assistant ${assistant.id} created`);
     consola.withTag(assistant.id).verbose(assistant);
     this.assistant = assistant;
+
+    await this.waitUntilVectorStoreReady();
   }
 
   private async deleteAssistant() {
@@ -137,6 +159,47 @@ export class FileSearchAssistant {
     await openai.beta.assistants.del(assistant_id).then((result) => {
       consola.withTag(assistant_id).debug(`Assistant ${assistant_id} deleted`);
       this.assistant = undefined;
+    });
+  }
+
+  private async waitUntilVectorStoreReady() {
+    if (!this.vectorStore) {
+      throw new Error("Vector store is not initialized");
+    }
+
+    let vectorStore = await openai.beta.vectorStores.retrieve(
+      this.vectorStore.id
+    );
+
+    const bar = new SingleBar({
+      format: `${this.vectorStore?.id} [{bar}] {percentage}% | ETA: {eta}s | {value}/{total}`,
+      stopOnComplete: true,
+    });
+    bar.start(vectorStore.file_counts.total, 0);
+    while (vectorStore.file_counts.in_progress > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      vectorStore = await openai.beta.vectorStores.retrieve(
+        this.vectorStore.id
+      );
+      bar.update(
+        vectorStore.file_counts.total - vectorStore.file_counts.in_progress
+      );
+    }
+    bar.stop(`${this.vectorStore?.id}: file processed`);
+  }
+
+  private async deleteVectorStore() {
+    if (!this.vectorStore) {
+      throw new Error("Vector store is not initialized");
+    }
+
+    const vectorStore_id = this.vectorStore.id;
+    await openai.beta.vectorStores.del(vectorStore_id).then((result) => {
+      consola
+        .withTag(vectorStore_id)
+        .debug(`Vector store ${vectorStore_id} deleted`);
+      consola.withTag(vectorStore_id).verbose("Vector store delete", result);
+      this.vectorStore = undefined;
     });
   }
 

@@ -364,11 +364,6 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
     `Assistant initialized: ${programWriter.assistant?.id}, ${authorExtractor.assistant?.id}, ${scriptWriter.assistant?.id}`
   );
 
-  // Sleep for 2 seconds to wait until uploaded files are processed
-  spinnies.add("sleep", { text: "Sleeping for 2 seconds" });
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-  spinnies.succeed("sleep", { text: "Slept for 2 seconds" });
-
   consola.info("プログラムの構成を開始します...");
   await programWriter.runAssistant([
     {
@@ -466,7 +461,7 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
   consola.verbose(script);
 
   // Generate audio
-  consola.info("Generating audio");
+  consola.info("音声ファイルを生成します");
   const audioOutputDir = path.join(runLogDir, "output_audio");
   const bgmPath = path.join(appRootPath.path, (await argv).bgm as string);
   const audioGenerator = new AudioGenerator(
@@ -477,7 +472,7 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
   );
   await audioGenerator.generate();
 
-  consola.info("Deinitializing assistant");
+  consola.info("アシスタントを削除します");
   await Promise.all([
     programWriter.deinit(),
     authorExtractor.deinit(),
