@@ -64,7 +64,10 @@ export class FileSearchAssistant {
       return uploadedFile;
     });
     const uploadedFiles = await Promise.all(uploadPromises);
-    bar.stop();
+    bar.stop(`${uploadedFiles.length} files uploaded`);
+    consola
+      .withTag(this.assistant?.id ?? this.name ?? "unknown-assistant")
+      .verbose("Uploaded files: ", uploadedFiles);
 
     await this.createAssistant();
   }
@@ -82,7 +85,9 @@ export class FileSearchAssistant {
   private async uploadFile(filePath: string): Promise<OpenAI.Files.FileObject> {
     const absolutePath = path.resolve(process.cwd(), filePath);
 
-    consola.debug(`Uploading file ${filePath}`);
+    consola
+      .withTag(this.assistant?.id ?? this.name ?? "")
+      .debug(`Uploading file ${filePath}`);
     const file = await openai.files
       .create({
         file: fs.createReadStream(absolutePath),
@@ -126,7 +131,7 @@ export class FileSearchAssistant {
     });
     consola
       .withTag(vectorStore.id)
-      .debug(`Vector store ${vectorStore.id} created`);
+      .debug(`Vector store ${vectorStore.id}: ${vectorStore.name} created`);
     consola.withTag(vectorStore.id).verbose(vectorStore);
     this.vectorStore = vectorStore;
 
@@ -185,7 +190,9 @@ export class FileSearchAssistant {
         vectorStore.file_counts.total - vectorStore.file_counts.in_progress
       );
     }
-    bar.stop(`${this.vectorStore?.id}: file processed`);
+    bar.stop(
+      `${this.vectorStore?.id}: ${this.vectorStore?.name}: file processed`
+    );
   }
 
   private async deleteVectorStore() {

@@ -193,16 +193,6 @@ ${JSON.stringify(inforExtractorOutputExample)}
 出力: 
 論文の第1著者はRon Wakkaryです
 `;
-  const authorExtractor = new FileSearchAssistant(
-    filePaths,
-    infoExtractorSystemPrompt,
-    "author_extractor"
-  );
-  const titleExtractor = new FileSearchAssistant(
-    filePaths,
-    infoExtractorSystemPrompt,
-    "title_extractor"
-  );
 
   const radioHostVoice: VoiceOptions = "onyx";
   const guestVoice: VoiceOptions = "nova";
@@ -357,16 +347,7 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
   // ここから処理を開始 ----------------------------------------------------------
 
   // アシスタントの初期化
-  await Promise.all([
-    programWriter.init(),
-    authorExtractor.init(),
-    titleExtractor.init(),
-    scriptWriter.init(),
-  ]);
-
-  consola.info(
-    `Assistant initialized: ${programWriter.assistant?.id}, ${authorExtractor.assistant?.id}, ${scriptWriter.assistant?.id}`
-  );
+  await Promise.all([programWriter.init(), scriptWriter.init()]);
 
   consola.info("プログラムの構成を開始します...");
   await programWriter.runAssistant([
@@ -389,37 +370,50 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
   consola.info(program);
 
   consola.info("情報を抽出します");
-  await Promise.all([
-    authorExtractor.runAssistant([
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: "論文の第1著者をjsonで出力",
-          },
-        ],
-      },
-    ]),
-    titleExtractor.runAssistant([
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: "論文のタイトルをjsonで出力",
-          },
-        ],
-      },
-    ]),
-  ]);
+  const extractTasks = [
+    "論文の第1著者をjsonで出力",
+    "論文のタイトルをjsonで出力",
+  ];
 
-  const authorText = (
-    await authorExtractor.parseMessage<InfoExtractorOutput>(-1)
-  )?.result;
-  const paperTitleText = (
-    await titleExtractor.parseMessage<InfoExtractorOutput>(-1)
-  )?.result;
+  const { results: extractionResults } = await PromisePool.withConcurrency(
+    (
+      await argv
+    ).assistantConcurrency
+  )
+    .for(extractTasks)
+    .process(async (task, index, pool) => {
+      const extractor = new FileSearchAssistant(
+        filePaths,
+        infoExtractorSystemPrompt,
+        `${task}_${runId}`
+      );
+      await extractor.init();
+
+      await extractor.runAssistant([
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: task,
+            },
+          ],
+        },
+      ]);
+
+      await extractor.deinit();
+
+      const result = await extractor.parseMessage<InfoExtractorOutput>(-1);
+      if (!result) {
+        throw new Error("Info extractor did not return a valid result");
+      }
+
+      return result;
+    });
+
+  const authorText = extractionResults[0]?.result;
+  const paperTitleText = extractionResults[1]?.result;
+
   const outputFileNameText =
     sanitize(paperTitleText ?? "output")
       .replace(".", "_")
@@ -477,12 +471,7 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
   await audioGenerator.generate();
 
   consola.info("アシスタントを削除します");
-  await Promise.all([
-    programWriter.deinit(),
-    authorExtractor.deinit(),
-    titleExtractor.deinit(),
-    scriptWriter.deinit(),
-  ]);
+  await Promise.all([programWriter.deinit(), scriptWriter.deinit()]);
 }
 
 main();
