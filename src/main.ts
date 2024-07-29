@@ -9,6 +9,7 @@ import { argv } from "./args";
 import { consola, runId, runLogDir } from "./logging";
 import { spinnies } from "./spinnies";
 import { AudioGenerator, TurnSchema, Turn } from "./audio";
+import { VoiceOptions } from "./openai/tts";
 
 const ProgramWriterOutputSchema = Type.Object({
   totalTurns: Type.Number({
@@ -203,6 +204,9 @@ ${JSON.stringify(inforExtractorOutputExample)}
     "title_extractor"
   );
 
+  const radioHostVoice: VoiceOptions = "onyx";
+  const guestVoice: VoiceOptions = "nova";
+
   const scriptWriterInputExample: ScriptWriterInput = {
     author: "Ron Wakkary",
     title: "番組の導入と概要",
@@ -221,18 +225,18 @@ ${JSON.stringify(inforExtractorOutputExample)}
     conversationTurns: 12,
     script: [
       {
-        speaker: "onyx",
-        voice: "onyx",
+        speaker: radioHostVoice,
+        voice: radioHostVoice,
         text: 'PaperWaveへようこそ．今回はRon Wakkaryさんをお迎えして，"Roaming Objects: Encoding Digital Histories of Use into Shared Objects and Tools" という研究についてお話しいただきます．Ron Wakkaryさん，よろしくお願いします．',
       },
       {
         speaker: "Ron Wakkary",
-        voice: "echo",
+        voice: guestVoice,
         text: "Ron Wakkaryです．よろしくお願いいたします．",
       },
       {
-        speaker: "onyx",
-        voice: "onyx",
+        speaker: radioHostVoice,
+        voice: radioHostVoice,
         text: "まず始めに，この研究の面白い部分を手短に教えていただけますか．",
       },
     ],
@@ -249,18 +253,18 @@ ${JSON.stringify(inforExtractorOutputExample)}
     conversationTurns: 20,
     script: [
       {
-        speaker: "onyx",
-        voice: "onyx",
+        speaker: radioHostVoice,
+        voice: radioHostVoice,
         text: "それではここからは，フィールドワークで得られた知見についてディスカッションしていきましょう．",
       },
       {
         speaker: "Ron Wakkary",
-        voice: "echo",
+        voice: guestVoice,
         text: "はい，能力とツールには面白い関係がありました．",
       },
       {
-        speaker: "onyx",
-        voice: "onyx",
+        speaker: radioHostVoice,
+        voice: radioHostVoice,
         text: "「能力とツールの関係」は，次のトピックである「チュートリアルのフォーマットとシーケンス」にも関わってきそうですね．",
       },
     ],
@@ -275,18 +279,18 @@ ${JSON.stringify(inforExtractorOutputExample)}
     conversationTurns: 12,
     script: [
       {
-        speaker: "onyx",
-        voice: "onyx",
+        speaker: radioHostVoice,
+        voice: radioHostVoice,
         text: "非常に有益なお話をありがとうございました。リスナーの皆さんも、これでDIYにもっと挑戦しやすくなるでしょう。",
       },
       {
         speaker: "Ron Wakkary",
-        voice: "echo",
+        voice: guestVoice,
         text: "こちらこそ、話をさせていただきありがとうございました。",
       },
       {
-        speaker: "onyx",
-        voice: "onyx",
+        speaker: radioHostVoice,
+        voice: radioHostVoice,
         text: "ありがとうございました。それでは今日はここまでにしましょう。また次回をお楽しみに。",
       },
     ],
@@ -300,8 +304,8 @@ ${JSON.stringify(inforExtractorOutputExample)}
 あなたはラジオの教育番組の放送作家です．PDFの学術論文の内容を専門的に解説する番組の台本を書きます．
 
 # 番組の出演者
-onyx（voice: onyx）：番組のパーソナリティ
-〈紹介される論文の著者（入力される）〉(voice: echo)：論文の著者
+${radioHostVoice}（voice: ${radioHostVoice}）：番組のパーソナリティ
+〈紹介される論文の著者（入力される）〉(voice: ${guestVoice})：論文の著者
 
 # パーソナリティの設定
 ・ラジオパーソナリティのプロフェッショナルです。
