@@ -110,6 +110,13 @@ const consoleConsola = createConsola({
 async function setupConsola() {
   consola.wrapConsole();
   consoleConsola.level = LogLevels[(await argv).log as LogType];
+  // Log the runId
+  consola.info(`Run ID: ${runId}`);
+  consola.debug("Consola setup complete");
+
+  // Log the executed command
+  const command = process.argv.join(" ");
+  consola.debug(`Command: ${command}`);
 }
 
 setupConsola();
