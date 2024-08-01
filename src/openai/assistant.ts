@@ -124,10 +124,6 @@ export class FileSearchAssistant {
     const vectorStore = await openai.beta.vectorStores.create({
       name: this.name,
       file_ids: this.uploadedFiles.map((file) => file.id),
-      expires_after: {
-        anchor: "last_active_at",
-        days: 1,
-      },
     });
     consola
       .withTag(vectorStore.id)

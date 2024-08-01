@@ -7,29 +7,41 @@ import PromisePool from "@supercharge/promise-pool";
 import { openai } from "../src/openai";
 import { consola } from "../src/logging";
 import { ASSISTANT_NAME_PREFIX } from "../src/openai/assistant";
+import { argv } from "../src/args";
+import { error } from "console";
+
+let forceClean = false;
 
 async function cleanAssistants() {
   let assistants = await openai.beta.assistants.list({
     limit: 100,
   });
 
-  while (assistants.data.length !== 0) {
-    await PromisePool.withConcurrency(30)
+  let skippedCount = 0;
+
+  while (assistants.data.length - skippedCount > 0) {
+    const { results, errors } = await PromisePool.withConcurrency(30)
       .for(assistants.data)
       .process(async (assistant) => {
-        if (assistant.name?.startsWith(ASSISTANT_NAME_PREFIX)) {
+        if (forceClean || assistant.name?.startsWith(ASSISTANT_NAME_PREFIX)) {
           consola.info(`Deleting assistant ${assistant.id}: ${assistant.name}`);
           const response = await openai.beta.assistants.del(assistant.id);
           consola.debug(`Assistant ${assistant.id}: ${assistant.name} deleted`);
           consola.verbose(response);
         } else {
           consola.info(`Skipping assistant ${assistant.id}: ${assistant.name}`);
+          skippedCount++;
         }
       });
+
+    errors.forEach((err) => {
+      consola.error(err);
+    });
 
     assistants = await openai.beta.assistants.list({
       limit: 100,
     });
+    consola.debug(`Assistants left: ${assistants.data.length - skippedCount}`);
   }
 }
 
@@ -38,11 +50,13 @@ async function cleanVectorStores() {
     limit: 100,
   });
 
-  while (vectorStores.data.length !== 0) {
-    await PromisePool.withConcurrency(30)
+  let skippedCount = 0;
+
+  while (vectorStores.data.length - skippedCount > 0) {
+    const { results, errors } = await PromisePool.withConcurrency(30)
       .for(vectorStores.data)
       .process(async (vectorStore) => {
-        if (vectorStore.name?.startsWith(ASSISTANT_NAME_PREFIX)) {
+        if (forceClean || vectorStore.name?.startsWith(ASSISTANT_NAME_PREFIX)) {
           consola.info(
             `Deleting vector store ${vectorStore.id}: ${vectorStore.name}`
           );
@@ -50,6 +64,7 @@ async function cleanVectorStores() {
           await cleanVectorStoreFiles(vectorStore.id);
 
           const response = await openai.beta.vectorStores.del(vectorStore.id);
+
           consola.debug(
             `Vector store ${vectorStore.id}: ${vectorStore.name} deleted`
           );
@@ -58,12 +73,20 @@ async function cleanVectorStores() {
           consola.info(
             `Skipping vector store ${vectorStore.id}: ${vectorStore.name}`
           );
+          skippedCount++;
         }
       });
+
+    errors.forEach((err) => {
+      consola.error(err);
+    });
 
     vectorStores = await openai.beta.vectorStores.list({
       limit: 100,
     });
+    consola.debug(
+      `Vector stores left: ${vectorStores.data.length - skippedCount}`
+    );
   }
 }
 
@@ -88,6 +111,8 @@ async function cleanVectorStoreFiles(vectorStoreID: string) {
 }
 
 async function main() {
+  forceClean = (await argv).forceClean;
+
   await cleanVectorStores();
   await cleanAssistants();
 }
