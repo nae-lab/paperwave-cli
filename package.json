@@ -5,7 +5,8 @@
   "main": "src/main.js",
   "scripts": {
     "main": "ts-node src/main.ts",
-    "clean": "ts-node scripts/clean-assistants.ts"
+    "clean": "ts-node scripts/clean-assistants.ts",
+    "clean:files": "ts-node scripts/clean-files.ts"
   },
   "keywords": [],
   "author": "",

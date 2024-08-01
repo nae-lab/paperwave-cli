@@ -52,5 +52,9 @@ export const argv = yargs(hideBin(process.argv))
       type: "number",
       default: 0.1,
     },
+    "force-clean": {
+      type: "boolean",
+      default: false,
+    },
   })
   .parse();
