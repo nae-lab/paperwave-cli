@@ -24,11 +24,11 @@ export async function parseJSON<T>(json: string) {
     if (error instanceof SyntaxError) {
       consola.warn(`Message is not valid JSON: ${json}`);
 
-      // try fixing the JSON
-      consola.info("Trying to fix JSON by jsonrepair");
-      const fixedJSON = jsonrepair(json);
-
       try {
+        // try fixing the JSON
+        consola.info("Trying to fix JSON by jsonrepair");
+        const fixedJSON = jsonrepair(json);
+
         data = JSON.parse(fixedJSON) as T;
       } catch (error) {
         consola.warn("Failed to fix JSON by jsonrepair");
