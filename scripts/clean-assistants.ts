@@ -1,3 +1,8 @@
+import dotenv from "dotenv";
+dotenv.config({
+  override: true,
+});
+
 import PromisePool from "@supercharge/promise-pool";
 import { openai } from "../src/openai";
 import { consola } from "../src/logging";

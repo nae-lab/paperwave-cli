@@ -4,8 +4,8 @@
   "description": "",
   "main": "src/main.js",
   "scripts": {
-    "main": "ts-node -r \"dotenv/config\" src/main.ts",
-    "clean": "ts-node -r \"dotenv/config\" scripts/clean-assistants.ts"
+    "main": "ts-node src/main.ts",
+    "clean": "ts-node scripts/clean-assistants.ts"
   },
   "keywords": [],
   "author": "",

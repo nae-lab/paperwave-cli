@@ -1,3 +1,8 @@
+import dotenv from "dotenv";
+dotenv.config({
+  override: true,
+});
+
 import path from "path";
 import { PromisePool } from "@supercharge/promise-pool";
 import { Type, type Static } from "@sinclair/typebox";
