@@ -19,6 +19,7 @@ import { SingleBar } from "../progress";
 import { argv } from "../args";
 
 export const ASSISTANT_NAME_PREFIX = "llm-radio-file-search";
+const RETRY_COUNT = 30;
 
 export class FileSearchAssistant {
   assistant?: OpenAI.Beta.Assistants.Assistant;
@@ -247,77 +248,105 @@ export class FileSearchAssistant {
 
     // TODO: Incompleteの時に再度テキスト生成をする
     let results: OpenAI.Beta.Threads.Messages.Message[] = [];
-    // while (
-    //   results.at(-1)?.completed_at &&
-    //   results.at(-1)?.incomplete_at === null
-    // ) {
-    try {
-      await this.streamAndWait(
-        thread.id,
-        {
-          assistant_id: this.assistant.id,
-          model: model,
-          tool_choice: {
-            type: "file_search",
-          },
-          response_format: {
-            type: "text",
-          },
-        },
-        spinnieName
-      );
-    } catch (error) {
-      consola.withTag([this.assistant?.id, thread.id].join(",")).error(error);
-      spinnies.fail(spinnieName, { text: `${thread.id}: failed` });
-      return [];
-    }
-    consola
-      .withTag([this.assistant?.id, thread.id].join(","))
-      .debug("Text generation stopped");
-
-    // 全てのメッセージを取得する
-    const runResult = await openai.beta.threads.messages.list(thread.id, {
-      order: "asc",
-    });
-    consola
-      .withTag([this.assistant?.id, thread.id].join(","))
-      .debug(`Retrieved all messages from thread ${thread.id}`);
-    consola
-      .withTag([this.assistant?.id, thread.id].join(","))
-      .verbose(runResult.data);
-    const assistantMessages = runResult.data.filter(
-      (message) => message.role === "assistant"
-    );
-
-    let runResultMessageContent: ThreadCreateParams.Message[] = [];
-    runResult.data.forEach((resultMessageContent) => {
-      if (resultMessageContent.content.length > 0) {
-        const contents = resultMessageContent.content.map(
-          (content): ThreadCreateParams.Message => {
-            if (content.type === "text") {
-              const message: ThreadCreateParams.Message = {
-                role: resultMessageContent.role,
-                content: content.text.value.toString(),
-              };
-              return message;
-            } else {
-              const message: ThreadCreateParams.Message = {
-                role: resultMessageContent.role,
-                content: JSON.stringify(content),
-              };
-
-              return message;
-            }
+    for (let i = 0; i < RETRY_COUNT; i++) {
+      // 30回までリトライする
+      try {
+        for (let i = 0; i < RETRY_COUNT; i++) {
+          // 30回までテキストの再生成を繰り返す．
+          try {
+            await this.streamAndWait(
+              thread.id,
+              {
+                assistant_id: this.assistant.id,
+                model: model,
+                tool_choice: {
+                  type: "file_search",
+                },
+                response_format: {
+                  type: "text",
+                },
+              },
+              spinnieName
+            );
+          } catch (error) {
+            consola
+              .withTag([this.assistant?.id, thread.id].join(","))
+              .error(error);
+            spinnies.fail(spinnieName, { text: `${thread.id}: failed` });
+            return [];
           }
-        );
+          consola
+            .withTag([this.assistant?.id, thread.id].join(","))
+            .debug("Text generation stopped");
 
-        runResultMessageContent.push(...contents);
+          // 全てのメッセージを取得する
+          const runResult = await openai.beta.threads.messages.list(thread.id, {
+            order: "asc",
+          });
+          consola
+            .withTag([this.assistant?.id, thread.id].join(","))
+            .debug(`Retrieved all messages from thread ${thread.id}`);
+          consola
+            .withTag([this.assistant?.id, thread.id].join(","))
+            .verbose(runResult.data);
+          const assistantMessages = runResult.data.filter(
+            (message) => message.role === "assistant"
+          );
+
+          let runResultMessageContent: ThreadCreateParams.Message[] = [];
+          runResult.data.forEach((resultMessageContent) => {
+            if (resultMessageContent.content.length > 0) {
+              const contents = resultMessageContent.content.map(
+                (content): ThreadCreateParams.Message => {
+                  if (content.type === "text") {
+                    const message: ThreadCreateParams.Message = {
+                      role: resultMessageContent.role,
+                      content: content.text.value.toString(),
+                    };
+                    return message;
+                  } else {
+                    const message: ThreadCreateParams.Message = {
+                      role: resultMessageContent.role,
+                      content: JSON.stringify(content),
+                    };
+
+                    return message;
+                  }
+                }
+              );
+
+              runResultMessageContent.push(...contents);
+            }
+          });
+
+          this.threadContext = runResultMessageContent;
+          results.push(...assistantMessages);
+
+          if (assistantMessages.some((message) => message.incomplete_details)) {
+            consola.withTag([this.assistant?.id, thread.id].join(",")).info(
+              "Incomplete message detected. Reasons: ",
+              assistantMessages
+                .filter((message) => message.incomplete_details)
+                .map((message) => message.incomplete_details?.reason)
+            );
+          } else {
+            consola
+              .withTag([this.assistant?.id, thread.id].join(","))
+              .debug("No incomplete message detected. Finish thread");
+            break;
+          }
+        }
+
+        break;
+      } catch (error) {
+        consola.error(error);
+        consola
+          .withTag([this.assistant?.id, thread.id].join(","))
+          .info("Retrying thread run...");
+
+        continue;
       }
-    });
-
-    this.threadContext = runResultMessageContent;
-    results.push(...assistantMessages);
-    // }
+    }
 
     spinnies.succeed(spinnieName, { text: `${thread.id}: finished` });
 
@@ -356,7 +385,7 @@ export class FileSearchAssistant {
       const stream = openai.beta.threads.runs.stream(threadId, body);
 
       stream.on("textCreated", (text) => {
-        consola.withTag(threadId).verbose("assistant > ");
+        // consola.withTag(threadId).verbose("assistant > ");
       });
 
       let snapshot_length = 0;
