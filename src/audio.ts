@@ -88,7 +88,11 @@ export class AudioGenerator {
     consola.debug("Synthesizing speech segments...");
 
     // Synthesize speech for each turn in parallel
-    await PromisePool.withConcurrency((await argv).ttsConcurrency)
+    const { errors } = await PromisePool.withConcurrency(
+      (
+        await argv
+      ).ttsConcurrency
+    )
       .for(this.script)
       .process(async (turn, index, pool) => {
         // ソートのためにインデックスは0埋めした4桁数字にする
@@ -102,6 +106,13 @@ export class AudioGenerator {
         consola.debug(`Speech segment ${index} synthesized.`);
         bar.increment(1, { filename: speechFilename });
       });
+
+    if (errors.length > 0) {
+      errors.forEach((error) => {
+        consola.error(error);
+      });
+      throw new Error("Failed to synthesize speech segments.");
+    }
 
     // sort audio segments by filename to ensure correct order
     audioSegments.sort();
@@ -143,7 +154,7 @@ export class AudioGenerator {
       fs.mkdirSync(rootOutputDir); // Create output directory if it doesn't exist
     }
     // Clean output directory
-    fs.emptyDirSync(rootOutputDir);
+    // fs.emptyDirSync(rootOutputDir);
 
     const rootOutputFilename = path.join(
       rootOutputDir,

@@ -26,7 +26,7 @@ export class FileSearchAssistant {
   filePaths: string[] = [];
   uploadedFiles: OpenAI.Files.FileObject[] = [];
   vectorStore?: OpenAI.Beta.VectorStores.VectorStore;
-  messages: OpenAI.Beta.Threads.Messages.Message[] = [];
+  threadContext: ThreadCreateParams.Message[] = [];
   instructions: string;
   temperature?: number;
   topP?: number;
@@ -79,7 +79,7 @@ export class FileSearchAssistant {
   }
 
   reset() {
-    this.messages = [];
+    this.threadContext = [];
   }
 
   private async uploadFile(filePath: string): Promise<OpenAI.Files.FileObject> {
@@ -134,7 +134,14 @@ export class FileSearchAssistant {
     const assistant = await openai.beta.assistants.create({
       instructions: this.instructions,
       name: this.name,
-      tools: [{ type: "file_search" }],
+      tools: [
+        {
+          type: "file_search",
+          file_search: {
+            max_num_results: 50, // this is the maximum number for gpt-4*
+          },
+        },
+      ],
       tool_resources: {
         file_search: {
           vector_store_ids: [vectorStore.id],
@@ -213,32 +220,11 @@ export class FileSearchAssistant {
       throw new Error("Assistant is not initialized");
     }
 
-    const context = this.messages
-      .map((message): ThreadCreateParams.Message[] => {
-        let contents: ThreadCreateParams.Message[] = [];
-        if (message.content.length > 0) {
-          contents = message.content.map((content) => {
-            if (content.type === "text") {
-              return {
-                role: message.role,
-                content: content.text.value.toString(),
-              };
-            } else {
-              return {
-                role: message.role,
-                content: JSON.stringify(content),
-              };
-            }
-          });
-        }
-
-        return contents;
-      })
-      .flat()
-      .slice(-30); // limit context to 30 messages to avoid hitting the array maximum length 32 limit
-
     const params: ThreadCreateParams = {
-      messages: [...context, ...messages] as ThreadCreateParams.Message[],
+      messages: [
+        ...this.threadContext.slice(-30),
+        ...messages,
+      ] as ThreadCreateParams.Message[],
     };
     consola.verbose(
       "Creating thread with messages: ",
@@ -303,7 +289,33 @@ export class FileSearchAssistant {
       (message) => message.role === "assistant"
     );
 
-    this.messages.push(...runResult.data);
+    let runResultMessageContent: ThreadCreateParams.Message[] = [];
+    runResult.data.forEach((resultMessageContent) => {
+      if (resultMessageContent.content.length > 0) {
+        const contents = resultMessageContent.content.map(
+          (content): ThreadCreateParams.Message => {
+            if (content.type === "text") {
+              const message: ThreadCreateParams.Message = {
+                role: resultMessageContent.role,
+                content: content.text.value.toString(),
+              };
+              return message;
+            } else {
+              const message: ThreadCreateParams.Message = {
+                role: resultMessageContent.role,
+                content: JSON.stringify(content),
+              };
+
+              return message;
+            }
+          }
+        );
+
+        runResultMessageContent.push(...contents);
+      }
+    });
+
+    this.threadContext = runResultMessageContent;
     results.push(...assistantMessages);
     // }
 
@@ -313,24 +325,20 @@ export class FileSearchAssistant {
   }
 
   async parseMessage<T>(at: number): Promise<T | undefined> {
-    const message = this.messages
+    const message = this.threadContext
       .filter((message) => message.role === "assistant")
       .at(at);
     let text = "";
     try {
-      if (
-        message &&
-        message.content.length > 0 &&
-        message.content[0].type === "text"
-      ) {
-        text = message.content[0].text.value.toString();
+      if (message && message.content.length > 0) {
+        text = message.content.toString();
         // extract json from text
         text = extractJSONString(text);
 
         return (await parseJSON(text)) as T;
       } else {
         consola
-          .withTag(message?.id.toString() ?? "")
+          .withTag(this.name.toString() ?? "")
           .warn(`Message is not text: ${message}`);
       }
     } catch (error) {

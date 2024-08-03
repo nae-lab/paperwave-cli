@@ -355,13 +355,15 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
   await Promise.all([programWriter.init(), scriptWriter.init()]);
 
   consola.info("プログラムの構成を開始します...");
+  const programDuration = (await argv).minute;
+  consola.debug(`Program duration: ${programDuration}分`);
   await programWriter.runAssistant([
     {
       role: "user",
       content: [
         {
           type: "text",
-          text: `${(await argv).minute}分`,
+          text: `${programDuration}分`,
         },
       ],
     },
@@ -461,7 +463,7 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
   // スクリプトのチャンクを1次元配列に変換して，全体のスクリプトを生成
   const script = scriptChunks.flat();
 
-  consola.verbose(script);
+  consola.verbose("All script of this program...", script);
 
   // Generate audio
   consola.info("音声ファイルを生成します");
