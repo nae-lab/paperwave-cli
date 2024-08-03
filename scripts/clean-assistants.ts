@@ -34,9 +34,13 @@ async function cleanAssistants() {
         }
       });
 
-    errors.forEach((err) => {
-      consola.error(err);
-    });
+    if (errors.length > 0) {
+      errors.forEach((err) => {
+        consola.error(err);
+      });
+
+      throw new Error("Errors occurred while deleting assistants");
+    }
 
     assistants = await openai.beta.assistants.list({
       limit: 100,
@@ -77,9 +81,13 @@ async function cleanVectorStores() {
         }
       });
 
-    errors.forEach((err) => {
-      consola.error(err);
-    });
+    if (errors.length > 0) {
+      errors.forEach((err) => {
+        consola.error(err);
+      });
+
+      throw new Error("Errors occurred while deleting vector stores");
+    }
 
     vectorStores = await openai.beta.vectorStores.list({
       limit: 100,
