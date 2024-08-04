@@ -1,5 +1,6 @@
 import * as fs from "fs-extra";
 import { Type, type Static } from "@sinclair/typebox";
+import { backOff } from "exponential-backoff";
 
 import { openai } from "../openai";
 import { consola } from "../logging";
@@ -36,7 +37,30 @@ export async function synthesizeSpeech(
   };
   consola.verbose("Requesting TTS from OpenAI", requestOptions);
 
-  const response = await openai.audio.speech.create(requestOptions);
+  const retryCount = (await argv).retryCount as number;
+  const retryMaxDelay = (await argv).retryMaxDelay as number;
+  const response = await backOff(
+    async () => {
+      return await openai.audio.speech.create(requestOptions);
+    },
+    {
+      numOfAttempts: retryCount,
+      maxDelay: retryMaxDelay,
+      retry: (e, attempt) => {
+        consola.debug(
+          `Failed to synthesize speech after ${attempt} attempts: ${e}`
+        );
+
+        if (e.type === "requests" && (e.status === 429 || e.status >= 500)) {
+          consola.debug("Retrying due to HTTP error", e);
+          return true;
+        }
+
+        consola.debug("Not retrying: ", e);
+        return false;
+      },
+    }
+  );
 
   consola.verbose("Received TTS response", response);
 

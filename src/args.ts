@@ -5,15 +5,19 @@ import { hideBin } from "yargs/helpers";
 
 export const argv = yargs(hideBin(process.argv))
   .options({
-    minute: {
-      alias: "m",
-      type: "number",
-    },
     log: {
       alias: "l",
       type: "string",
       default: "info",
       choices: Object.keys(LogLevels) as string[],
+    },
+    "retry-count": {
+      type: "number",
+      default: 10,
+    },
+    "retry-max-delay": {
+      type: "number",
+      default: 150000,
     },
     "gpt-model": {
       alias: "g",
@@ -43,6 +47,10 @@ export const argv = yargs(hideBin(process.argv))
       alias: "p",
       type: "array",
       default: [],
+    },
+    minute: {
+      alias: "m",
+      type: "number",
     },
     bgm: {
       alias: "b",
