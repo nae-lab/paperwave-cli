@@ -20,6 +20,21 @@ const RETRY_COUNT = 10;
 
 const AVERAGE_TURN_DURATION_SECONDS = 13.033141; // https://ut-naelab.slack.com/archives/C07ACRCVAPK/p1722651927644929
 
+const goodAndBadProgramFeatures = `
+# 望ましい番組の特徴
+・論文の詳細までを網羅する
+・専門用語は専門的な定義などを交えて詳しく解説する
+・論文の内容を正確に反映する
+
+# 不適切な番組の特徴
+・論文の内容を省略したり、誤解を招くような内容
+・論文の内容と関係ない話題を含む
+・専門用語をそのまま使い、説明を省略する
+・研究者の発言を適切に引用しない
+・CMや番組の紹介，次回予告など、論文と関係ない内容を含む
+・研究者の個人的エピソードなど，論文に記載されてない情報を含む
+`;
+
 function minutesToTurns(minute: number): number {
   return Math.floor((minute * 60) / AVERAGE_TURN_DURATION_SECONDS);
 }
@@ -218,6 +233,8 @@ ${JSON.stringify(ProgramWriterOutputSchema)}
 
 出力:
 ${JSON.stringify(programWriterOutputExample)}
+
+${goodAndBadProgramFeatures}
 `,
     "program_writer"
   );
@@ -362,6 +379,8 @@ ${radioHostVoice}（voice: ${radioHostVoice}）：番組のパーソナリティ
 
 # 研究者の設定
 ・研究者は論文の内容をわかりやすく説明する研究者です
+
+${goodAndBadProgramFeatures}
 
 # 入力
 JSON形式で入力されます．コーナーごとに繰り返し入力されます．
