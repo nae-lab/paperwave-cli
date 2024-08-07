@@ -16,8 +16,6 @@ import { spinnies } from "./spinnies";
 import { AudioGenerator, TurnSchema, Turn } from "./audio";
 import { VoiceOptions } from "./openai/tts";
 
-const RETRY_COUNT = 10;
-
 const AVERAGE_TURN_DURATION_SECONDS = 13.033141; // https://ut-naelab.slack.com/archives/C07ACRCVAPK/p1722651927644929
 
 const goodAndBadProgramFeatures = `
@@ -275,13 +273,6 @@ ${JSON.stringify(inforExtractorOutputExample)}
 
 出力:
 ${JSON.stringify(infoExtractorOutputExampleTitle)}
-
-## 不適切な出力例（json以外の形式であるため不適切）
-入力:
-論文の第1著者
-
-出力: 
-論文の第1著者はRon Wakkaryです
 `;
 
   const radioHostVoice: VoiceOptions = "onyx";
@@ -511,7 +502,7 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
         nextSection: nextProgramItem,
       };
 
-      for (let i = 0; i < RETRY_COUNT; i++) {
+      for (let i = 0; i < (await argv).retryCount; i++) {
         try {
           await scriptWriter.runAssistant([
             {

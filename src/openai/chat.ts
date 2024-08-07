@@ -79,7 +79,8 @@ export class ChatCompletion {
         snapshot_length = result.content?.length ?? 0;
         spinnies.update(spinnieName, {
           text: `${spinnieDisplayName}: ${result.content
-            ?.slice(-60)
+            ?.toString()
+            .slice(-60)
             .replace(/\s/g, " ")}`,
         });
       }

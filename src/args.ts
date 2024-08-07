@@ -23,7 +23,13 @@ export const argv = yargs(hideBin(process.argv))
       alias: "g",
       type: "string",
       default: "gpt-4o",
-      choices: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"],
+      choices: [
+        "gpt-4o",
+        "gpt-4o-2024-08-06",
+        "gpt-4o-mini",
+        "gpt-4-turbo",
+        "gpt-3.5-turbo",
+      ],
     },
     "chat-concurrency": {
       type: "number",
