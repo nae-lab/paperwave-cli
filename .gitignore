@@ -131,3 +131,9 @@ dist
 
 # Static files
 assets/
+
+# tmp files
+tmp
+
+# Ignore .DS_Store
+.DS_Store

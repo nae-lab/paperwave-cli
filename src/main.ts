@@ -15,6 +15,7 @@ import { consola, runId, runLogDir } from "./logging";
 import { spinnies } from "./spinnies";
 import { AudioGenerator, TurnSchema, Turn } from "./audio";
 import { VoiceOptions } from "./openai/tts";
+import { merge } from "lodash";
 
 const AVERAGE_TURN_DURATION_SECONDS = 13.033141; // https://ut-naelab.slack.com/archives/C07ACRCVAPK/p1722651927644929
 
@@ -116,8 +117,14 @@ const ScriptWriterOutputSchema = Type.Object({
 
 type ScriptWriterOutput = Static<typeof ScriptWriterOutputSchema>;
 
-async function main() {
-  const filePaths = (await argv).papers as string[];
+export interface MainParams {
+  [key: string]: any;
+}
+
+export async function main(params?: MainParams) {
+  const finalParams = merge({}, argv, params);
+
+  const filePaths = finalParams.papers as string[];
 
   consola.info(`Initializing assistant with ${filePaths.length} files`);
 
@@ -415,7 +422,7 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
   await Promise.all([programWriter.init(), scriptWriter.init()]);
 
   consola.info("プログラムの構成を開始します...");
-  const programDuration = (await argv).minute ?? 5;
+  const programDuration = finalParams.minute ?? 5;
   consola.debug(`Program duration: ${programDuration}分`);
   const programTotalTurns = minutesToTurns(programDuration);
   await programWriter.runAssistant([
@@ -502,7 +509,7 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
         nextSection: nextProgramItem,
       };
 
-      for (let i = 0; i < (await argv).retryCount; i++) {
+      for (let i = 0; i < finalParams.retryCount; i++) {
         try {
           await scriptWriter.runAssistant([
             {
@@ -555,17 +562,17 @@ script actual length: ${result?.script.length}`
   // Generate audio
   consola.info("音声ファイルを生成します");
   const audioOutputDir = path.join(runLogDir, "output_audio");
-  const bgmPath = path.join(appRootPath.path, (await argv).bgm as string);
+  const bgmPath = path.join(appRootPath.path, finalParams.bgm as string);
   const audioGenerator = new AudioGenerator(
     script,
     audioOutputDir,
     outputFileNameText ? `radio-${outputFileNameText}` : "output",
     bgmPath
   );
-  await audioGenerator.generate();
 
   consola.info("アシスタントを削除します");
   await Promise.all([programWriter.deinit(), scriptWriter.deinit()]);
+  return await audioGenerator.generate();
 }
 
-main();
+// main();

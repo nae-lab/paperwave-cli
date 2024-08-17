@@ -6,6 +6,7 @@ import { PromisePool } from "@supercharge/promise-pool";
 import { path as ffmpegPath } from "@ffmpeg-installer/ffmpeg";
 import { Type, type Static } from "@sinclair/typebox";
 import CLIProgress from "cli-progress";
+import { uploadAudio } from "./firebase";
 
 import { openai } from "./openai";
 import {
@@ -160,10 +161,13 @@ export class AudioGenerator {
       rootOutputDir,
       `${this.outputFilename}.mp3`
     );
+    const publicUrl = await uploadAudio(mp3Filename);
     consola.debug(`Copying ${mp3Filename} to ${rootOutputDir}`);
     await fs.copyFile(mp3Filename, rootOutputFilename);
 
     consola.info(`Audio file created: ${rootOutputFilename}`);
+    consola.info(`Public URL: ${publicUrl}`);
+    return publicUrl;
   }
 
   async concatAudioSegments(audioSegments: string[], outputFilename: string) {
