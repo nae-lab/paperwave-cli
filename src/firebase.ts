@@ -1,4 +1,5 @@
 import { getStorage } from "firebase-admin/storage";
+import path from "path";
 import * as admin from "firebase-admin";
 
 // Firebaseのサービスアカウントキーのパス
@@ -20,10 +21,16 @@ export const uploadAudio = async (filePath: string) => {
     const bucket = getStorage().bucket();
 
     // ファイルをアップロードし、アップロードされたファイルの情報を取得
-    const [file] = await bucket.upload(filePath);
+    const [file] = await bucket.upload(filePath, {
+      destination: `radio/${path.basename(filePath)}`,
+    });
 
     // ファイル名を取得して公開URLを生成
-    const publicUrl = `https://storage.googleapis.com/${bucket.name}/radio/${file.name}`;
+    const publicUrl = await file.getSignedUrl({
+      action: "read",
+      // 100年間有効なURLを生成
+      expires: new Date().getTime() + 100 * 365 * 24 * 60 * 60 * 1000,
+    });
     return publicUrl;
   } catch (error) {
     console.error("Error uploading file:", error);
