@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import process from "process";
+import { backOff } from "exponential-backoff";
 import OpenAI from "openai";
 import { ThreadCreateParams } from "openai/resources/beta/index";
 import {
@@ -19,7 +20,7 @@ import { SingleBar } from "../progress";
 import { argv } from "../args";
 
 export const ASSISTANT_NAME_PREFIX = "llm-radio-file-search";
-const RETRY_COUNT = 30;
+const RUN_REPEATE_COUNT = 10;
 
 export class FileSearchAssistant {
   assistant?: OpenAI.Beta.Assistants.Assistant;
@@ -89,17 +90,39 @@ export class FileSearchAssistant {
     consola
       .withTag(this.assistant?.id ?? this.name ?? "")
       .debug(`Uploading file ${filePath}`);
-    const file = await openai.files
-      .create({
-        file: fs.createReadStream(absolutePath),
-        purpose: "assistants",
-      })
-      .then((result) => {
-        consola.debug(
-          `File ${filePath} uploaded and created with id ${result.id}`
-        );
-        return result;
-      });
+
+    const retryCount = (await argv).retryCount as number;
+    const retryMaxDelay = (await argv).retryMaxDelay as number;
+    const file = await backOff(
+      async () => {
+        return await openai.files
+          .create({
+            file: fs.createReadStream(absolutePath),
+            purpose: "assistants",
+          })
+          .then((result) => {
+            consola.debug(
+              `File ${filePath} uploaded and created with id ${result.id}`
+            );
+            return result;
+          })
+          .catch((error) => {
+            consola.error(`Failed to upload file ${filePath}: ${error}`);
+            throw error;
+          });
+      },
+      {
+        numOfAttempts: retryCount,
+        maxDelay: retryMaxDelay,
+        retry: (e, attempt) => {
+          consola.error(
+            `Failed to upload file after ${attempt} attempts: ${e}\nretrying...`
+          );
+
+          return true;
+        },
+      }
+    );
 
     this.uploadedFiles.push(file);
 
@@ -132,26 +155,44 @@ export class FileSearchAssistant {
     consola.withTag(vectorStore.id).verbose(vectorStore);
     this.vectorStore = vectorStore;
 
-    const assistant = await openai.beta.assistants.create({
-      instructions: this.instructions,
-      name: this.name,
-      tools: [
-        {
-          type: "file_search",
-          file_search: {
-            max_num_results: 50, // this is the maximum number for gpt-4*
+    const retryCount = (await argv).retryCount as number;
+    const retryMaxDelay = (await argv).retryMaxDelay as number;
+    const assistant = await backOff(
+      async () => {
+        return await openai.beta.assistants.create({
+          instructions: this.instructions,
+          name: this.name,
+          tools: [
+            {
+              type: "file_search",
+              file_search: {
+                max_num_results: 50, // this is the maximum number for gpt-4*
+              },
+            },
+          ],
+          tool_resources: {
+            file_search: {
+              vector_store_ids: [vectorStore.id],
+            },
           },
-        },
-      ],
-      tool_resources: {
-        file_search: {
-          vector_store_ids: [vectorStore.id],
-        },
+          model: (await argv).gptModel,
+          temperature: this.temperature,
+          top_p: this.topP,
+        });
       },
-      model: (await argv).gptModel,
-      temperature: this.temperature,
-      top_p: this.topP,
-    });
+      {
+        numOfAttempts: retryCount,
+        maxDelay: retryMaxDelay,
+        retry: (e, attempt) => {
+          consola.error(
+            `Failed to create assistant after ${attempt} attempts: ${e}\nretrying...`
+          );
+
+          return true;
+        },
+      }
+    );
+
     consola.withTag(assistant.id).debug(`Assistant ${assistant.id} created`);
     consola.withTag(assistant.id).verbose(assistant);
     this.assistant = assistant;
@@ -248,103 +289,86 @@ export class FileSearchAssistant {
 
     // TODO: Incompleteの時に再度テキスト生成をする
     let results: OpenAI.Beta.Threads.Messages.Message[] = [];
-    for (let i = 0; i < RETRY_COUNT; i++) {
-      // 30回までリトライする
+    for (let i = 0; i < RUN_REPEATE_COUNT; i++) {
       try {
-        for (let i = 0; i < RETRY_COUNT; i++) {
-          // 30回までテキストの再生成を繰り返す．
-          try {
-            await this.streamAndWait(
-              thread.id,
-              {
-                assistant_id: this.assistant.id,
-                model: model,
-                tool_choice: {
-                  type: "file_search",
-                },
-                response_format: {
-                  type: "text",
-                },
-              },
-              spinnieName
-            );
-          } catch (error) {
-            consola
-              .withTag([this.assistant?.id, thread.id].join(","))
-              .error(error);
-            spinnies.fail(spinnieName, { text: `${thread.id}: failed` });
-            return [];
-          }
-          consola
-            .withTag([this.assistant?.id, thread.id].join(","))
-            .debug("Text generation stopped");
+        await this.streamAndWait(
+          thread.id,
+          {
+            assistant_id: this.assistant.id,
+            model: model,
+            tool_choice: {
+              type: "file_search",
+            },
+            response_format: {
+              type: "text",
+            },
+          },
+          spinnieName
+        );
+      } catch (error) {
+        consola.withTag([this.assistant?.id, thread.id].join(",")).error(error);
+        spinnies.fail(spinnieName, { text: `${thread.id}: failed` });
+        return [];
+      }
+      consola
+        .withTag([this.assistant?.id, thread.id].join(","))
+        .debug("Text generation stopped");
 
-          // 全てのメッセージを取得する
-          const runResult = await openai.beta.threads.messages.list(thread.id, {
-            order: "asc",
-          });
-          consola
-            .withTag([this.assistant?.id, thread.id].join(","))
-            .debug(`Retrieved all messages from thread ${thread.id}`);
-          consola
-            .withTag([this.assistant?.id, thread.id].join(","))
-            .verbose(runResult.data);
-          const assistantMessages = runResult.data.filter(
-            (message) => message.role === "assistant"
+      // 全てのメッセージを取得する
+      const runResult = await openai.beta.threads.messages.list(thread.id, {
+        order: "asc",
+      });
+      consola
+        .withTag([this.assistant?.id, thread.id].join(","))
+        .debug(`Retrieved all messages from thread ${thread.id}`);
+      consola
+        .withTag([this.assistant?.id, thread.id].join(","))
+        .verbose(runResult.data);
+      const assistantMessages = runResult.data.filter(
+        (message) => message.role === "assistant"
+      );
+
+      let runResultMessageContent: ThreadCreateParams.Message[] = [];
+      runResult.data.forEach((resultMessageContent) => {
+        if (resultMessageContent.content.length > 0) {
+          const contents = resultMessageContent.content.map(
+            (content): ThreadCreateParams.Message => {
+              if (content.type === "text") {
+                const message: ThreadCreateParams.Message = {
+                  role: resultMessageContent.role,
+                  content: content.text.value.toString(),
+                };
+                return message;
+              } else {
+                const message: ThreadCreateParams.Message = {
+                  role: resultMessageContent.role,
+                  content: JSON.stringify(content),
+                };
+
+                return message;
+              }
+            }
           );
 
-          let runResultMessageContent: ThreadCreateParams.Message[] = [];
-          runResult.data.forEach((resultMessageContent) => {
-            if (resultMessageContent.content.length > 0) {
-              const contents = resultMessageContent.content.map(
-                (content): ThreadCreateParams.Message => {
-                  if (content.type === "text") {
-                    const message: ThreadCreateParams.Message = {
-                      role: resultMessageContent.role,
-                      content: content.text.value.toString(),
-                    };
-                    return message;
-                  } else {
-                    const message: ThreadCreateParams.Message = {
-                      role: resultMessageContent.role,
-                      content: JSON.stringify(content),
-                    };
-
-                    return message;
-                  }
-                }
-              );
-
-              runResultMessageContent.push(...contents);
-            }
-          });
-
-          this.threadContext = runResultMessageContent;
-          results.push(...assistantMessages);
-
-          if (assistantMessages.some((message) => message.incomplete_details)) {
-            consola.withTag([this.assistant?.id, thread.id].join(",")).info(
-              "Incomplete message detected. Reasons: ",
-              assistantMessages
-                .filter((message) => message.incomplete_details)
-                .map((message) => message.incomplete_details?.reason)
-            );
-          } else {
-            consola
-              .withTag([this.assistant?.id, thread.id].join(","))
-              .debug("No incomplete message detected. Finish thread");
-            break;
-          }
+          runResultMessageContent.push(...contents);
         }
+      });
 
-        break;
-      } catch (error) {
-        consola.error(error);
+      this.threadContext = runResultMessageContent;
+      results.push(...assistantMessages);
+
+      if (assistantMessages.some((message) => message.incomplete_details)) {
+        consola.withTag([this.assistant?.id, thread.id].join(",")).info(
+          "Incomplete message detected. Reasons: ",
+          assistantMessages
+            .filter((message) => message.incomplete_details)
+            .map((message) => message.incomplete_details?.reason)
+        );
+      } else {
         consola
           .withTag([this.assistant?.id, thread.id].join(","))
-          .info("Retrying thread run...");
-
-        continue;
+          .debug("No incomplete message detected. Finish thread");
+        break;
       }
     }
 
