@@ -13,25 +13,34 @@ export interface DocumentSnapshotType extends Object {
 }
 
 export class RecordingOptions implements DocumentSnapshotType {
-  public paperUrls: string[];
-  public minute: number = 15;
-  public bgm: string = "";
-  public bgmVolume: number = 0.25;
-  public llmModel: string = "gpt-4o-mini";
-  public chatConcurrency: number = 10;
-  public assistantConcurrency: number = 10;
-  public ttsModel: string = "tts-1";
-  public ttsConcurrency: number = 20;
-  public retryCount: number = 5;
-  public retryMaxDelay: number = 150000;
+  paperUrls: string[];
+  minute: number;
+  bgm: string;
+  bgmVolume: number;
+  llmModel: string;
+  chatConcurrency: number;
+  assistantConcurrency: number;
+  ttsModel: string;
+  ttsConcurrency: number;
+  retryCount: number;
+  retryMaxDelay: number;
 
   constructor(options: { paperUrls: string[] } & Partial<RecordingOptions>) {
-    const allowedOptions = {
-      ...options,
-    } as RecordingOptions;
+    if (!options.paperUrls || options.paperUrls.length === 0) {
+      throw new Error("At least one paper URL is required.");
+    }
 
-    Object.assign(this, allowedOptions);
-    this.paperUrls = options.paperUrls;
+    this.paperUrls = options.paperUrls ?? [];
+    this.minute = options.minute ?? 15;
+    this.bgm = options.bgm ?? "";
+    this.bgmVolume = options.bgmVolume ?? 0.25;
+    this.llmModel = options.llmModel ?? "gpt-4o-mini";
+    this.chatConcurrency = options.chatConcurrency ?? 10;
+    this.assistantConcurrency = options.assistantConcurrency ?? 10;
+    this.ttsModel = options.ttsModel ?? "tts-1";
+    this.ttsConcurrency = options.ttsConcurrency ?? 20;
+    this.retryCount = options.retryCount ?? 5;
+    this.retryMaxDelay = options.retryMaxDelay ?? 150000;
   }
 }
 
