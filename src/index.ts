@@ -6,6 +6,8 @@ import * as fs from "fs";
 import { db, bucket } from "./firebase";
 import { uploadLog } from "./logging";
 
+const COLLECTION_ID = "episode-test-yahagi";
+
 export interface DocumentSnapshotType extends Object {
   [key: string]: any | Date;
 }
@@ -107,7 +109,7 @@ async function processRecordingOptions(options: any) {
 }
 
 // episodeコレクションの監視
-db.collection("episode").onSnapshot((snapshot) => {
+db.collection(COLLECTION_ID).onSnapshot((snapshot) => {
   const promises = snapshot.docChanges().map((change) => {
     if (change.type === "added") {
       if (
