@@ -1,7 +1,9 @@
 import { main } from "./main"; // main.tsからインポート
 import { basename } from "path";
 import * as admin from "firebase-admin";
+import * as fs from "fs";
 import { db, bucket } from "./firebase";
+import { uploadLog } from "./logging";
 
 export interface DocumentSnapshotType extends Object {
   [key: string]: any | Date;
@@ -57,17 +59,23 @@ const handleNewProgram = async (
   // recordingOptionsの読み取りと処理
   const recordingOptions = data.recordingOptions;
   if (recordingOptions) {
-    console.log("Processing recordingOptions:", recordingOptions);
-    await snapshot.ref.update({ status: "processing" });
-    const processedURL = await processRecordingOptions(recordingOptions);
-    // 結果をドキュメントに更新
-    await snapshot.ref.update({
-      status: "processed",
-      contentURL: processedURL,
-    });
+    try {
+      console.log("Processing recordingOptions:", recordingOptions);
+      await snapshot.ref.update({ status: "processing" });
+      const processedURL = await processRecordingOptions(recordingOptions);
+      // 結果をドキュメントに更新
+      await snapshot.ref.update({
+        isRecordingCompleted: true,
+        contentURL: processedURL,
+      });
+      await uploadLog(snapshot);
+    } catch (error) {
+      console.error("Error processing recordingOptions:", error);
+      await snapshot.ref.update({ isRecordingFailed: true });
+    }
   } else {
     console.log("No recordingOptions found.");
-    await snapshot.ref.update({ status: "processFailed" });
+    await snapshot.ref.update({ isRecordingFailed: true });
   }
 };
 
@@ -97,11 +105,14 @@ async function processRecordingOptions(options: any) {
   }
 }
 
-// programsコレクションの監視
-db.collection("programs").onSnapshot((snapshot) => {
+// episodeコレクションの監視
+db.collection("episode").onSnapshot((snapshot) => {
   const promises = snapshot.docChanges().map((change) => {
     if (change.type === "added") {
-      if (!change.doc.data().status) {
+      if (
+        change.doc.data().isRecordingCompleted === false &&
+        change.doc.data().isRecordingFailed === false
+      ) {
         return handleNewProgram(change.doc);
       }
     }
@@ -110,9 +121,9 @@ db.collection("programs").onSnapshot((snapshot) => {
   // 全ての追加ドキュメントを並列に処理
   Promise.all(promises)
     .then(() => {
-      console.log("All new programs processed");
+      console.log("All new episodes processed");
     })
     .catch((error) => {
-      console.error("Error processing programs:", error);
+      console.error("Error processing episodes:", error);
     });
 });

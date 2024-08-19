@@ -6,6 +6,8 @@ import path from "path";
 import util from "util";
 import appRootPath from "app-root-path";
 import sanitize from "sanitize-filename";
+import * as admin from "firebase-admin";
+import { db, bucket } from "./firebase";
 
 import { createConsola, LogLevels, LogType, ConsolaReporter } from "consola";
 
@@ -37,7 +39,10 @@ const timezoneMinutes = (Math.abs(timezoneOffset) % 60)
 const timezoneSign = timezoneOffset < 0 ? "+" : "-";
 const hostname = os.hostname();
 const runIdUnsanitized = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}${timezoneSign}${timezoneHours}-${timezoneMinutes}-${hostname}`;
-export const runId = sanitize(runIdUnsanitized).replace(".", "_").replace(/\s/g, "_").slice(0, 120); // export for use in other files to store log files
+export const runId = sanitize(runIdUnsanitized)
+  .replace(".", "_")
+  .replace(/\s/g, "_")
+  .slice(0, 120); // export for use in other files to store log files
 export const runLogDir = path.join(logDir, runId); // export for use in other files to store log files
 fs.mkdirSync(runLogDir);
 
@@ -117,6 +122,21 @@ async function setupConsola() {
   // Log the executed command
   const command = process.argv.join(" ");
   consola.debug(`Command: ${command}`);
+}
+
+export async function uploadLog(snapshot: admin.firestore.DocumentSnapshot) {
+  const logFile = `${runLogDir}/${runId}.log`;
+  // ログファイルを読み取る
+  const logFileContent = fs.readFileSync(logFile, "utf8");
+  // ログファイルの各行を配列に変換
+  const logEntries = logFileContent
+    .trim()
+    .split("\n")
+    .map((line) => JSON.parse(line));
+  // Firestore のドキュメントを更新
+  await snapshot.ref.update({
+    recordingLogs: admin.firestore.FieldValue.arrayUnion(...logEntries),
+  });
 }
 
 setupConsola();

@@ -574,5 +574,6 @@ script actual length: ${result?.script.length}`
   await Promise.all([programWriter.deinit(), scriptWriter.deinit()]);
   return await audioGenerator.generate();
 }
-
-// main();
+if (require.main === module) {
+  main();
+}
