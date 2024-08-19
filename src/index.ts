@@ -1,5 +1,6 @@
 import { main } from "./main"; // main.tsからインポート
-import { basename } from "path";
+import path, { basename } from "path";
+import appRootPath from "app-root-path";
 import * as admin from "firebase-admin";
 import * as fs from "fs";
 import { db, bucket } from "./firebase";
@@ -41,7 +42,7 @@ function extractFilePath(firebaseUrl: string): string {
 async function downloadFile(firebaseUrl: string): Promise<string> {
   const filePath = extractFilePath(firebaseUrl);
   const filename = basename(filePath); // ファイル名を取得
-  const destFilename = `./downloads/${filename}`; // 保存先のファイル名
+  const destFilename = path.join(appRootPath + `/downloads/${filename}`); // 保存先のファイル名
 
   // ファイルをダウンロード
   await bucket.file(filePath).download({ destination: destFilename });
