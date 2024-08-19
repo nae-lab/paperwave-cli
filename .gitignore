@@ -132,8 +132,13 @@ dist
 # Static files
 assets/
 
+# firebase
+paperwave-firebase-adminsdk.json
+
 # tmp files
 tmp
+downloads/**
+!downloads/.gitkeep
 
 # Ignore .DS_Store
 .DS_Store
