@@ -3,8 +3,16 @@ import path from "path";
 import * as admin from "firebase-admin";
 
 // Firebaseのサービスアカウントキーのパス
-const serviceAccount = require(process.env
-  .FIREBASE_SERVICE_ACCOUNT_KEY as string);
+let serviceAccount: admin.ServiceAccount | string;
+if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+  serviceAccount = require(process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string);
+} else {
+  serviceAccount = {
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+  };
+}
 
 // Firebaseアプリを初期化
 admin.initializeApp({
