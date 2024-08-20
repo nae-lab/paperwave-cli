@@ -62,35 +62,6 @@ async function downloadFile(firebaseUrl: string): Promise<string> {
   return destFilename; // 保存したファイルのパスを返す
 }
 
-// プログラムが追加されたときにトリガーされる処理
-const handleNewProgram = async (
-  snapshot: admin.firestore.QueryDocumentSnapshot
-) => {
-  const data = snapshot.data();
-  console.log("New program added:", data);
-  // recordingOptionsの読み取りと処理
-  const recordingOptions = data.recordingOptions;
-  if (recordingOptions) {
-    try {
-      console.log("Processing recordingOptions:", recordingOptions);
-      await snapshot.ref.update({ status: "processing" });
-      const processedURL = await processRecordingOptions(recordingOptions);
-      // 結果をドキュメントに更新
-      await snapshot.ref.update({
-        isRecordingCompleted: true,
-        contentURL: processedURL,
-      });
-      await uploadLog(snapshot);
-    } catch (error) {
-      console.error("Error processing recordingOptions:", error);
-      await snapshot.ref.update({ isRecordingFailed: true });
-    }
-  } else {
-    console.log("No recordingOptions found.");
-    await snapshot.ref.update({ isRecordingFailed: true });
-  }
-};
-
 // プログラムの処理関数（例）
 async function processRecordingOptions(options: any) {
   try {
@@ -116,6 +87,35 @@ async function processRecordingOptions(options: any) {
     console.error(error);
   }
 }
+
+// プログラムが追加されたときにトリガーされる処理
+const handleNewProgram = async (
+  snapshot: admin.firestore.QueryDocumentSnapshot
+) => {
+  const data = snapshot.data();
+  console.log("New program added:", data);
+  // recordingOptionsの読み取りと処理
+  const recordingOptions = data.recordingOptions;
+  if (recordingOptions) {
+    try {
+      console.log("Processing recordingOptions:", recordingOptions);
+      await snapshot.ref.update({ status: "processing" });
+      const processedURL = await processRecordingOptions(recordingOptions);
+      // 結果をドキュメントに更新
+      await snapshot.ref.update({
+        isRecordingCompleted: true,
+        contentUrl: processedURL,
+      });
+      await uploadLog(snapshot);
+    } catch (error) {
+      console.error("Error processing recordingOptions:", error);
+      await snapshot.ref.update({ isRecordingFailed: true });
+    }
+  } else {
+    console.log("No recordingOptions found.");
+    await snapshot.ref.update({ isRecordingFailed: true });
+  }
+};
 
 // episodeコレクションの監視
 db.collection(COLLECTION_ID).onSnapshot((snapshot) => {
