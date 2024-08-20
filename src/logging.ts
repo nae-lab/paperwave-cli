@@ -128,14 +128,8 @@ export async function uploadLog(snapshot: admin.firestore.DocumentSnapshot) {
   const logFile = `${runLogDir}/${runId}.log`;
   // ログファイルを読み取る
   const logFileContent = fs.readFileSync(logFile, "utf8");
-  // ログファイルの各行を配列に変換
-  const logEntries = logFileContent
-    .trim()
-    .split("\n")
-    .map((line) => JSON.parse(line));
-  // Firestore のドキュメントを更新
   await snapshot.ref.update({
-    recordingLogs: admin.firestore.FieldValue.arrayUnion(...logEntries),
+    recordingLogs: [logFileContent],
   });
 }
 
