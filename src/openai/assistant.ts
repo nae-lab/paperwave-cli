@@ -12,7 +12,6 @@ import CLIProgress from "cli-progress";
 import { randomUUID } from "crypto";
 
 import { openai } from "../openai";
-import { ChatCompletion } from "./chat";
 import { parseJSON, extractJSONString } from "../json";
 import { consola, runId } from "../logging";
 import { spinnies } from "../spinnies";
@@ -21,6 +20,15 @@ import { argv } from "../args";
 
 export const ASSISTANT_NAME_PREFIX = "llm-radio-file-search";
 const RUN_REPEATE_COUNT = 10;
+
+type FileSearchAssistantOptions = {
+  name?: string;
+  temperature?: number;
+  topP?: number;
+  gptModel?: string;
+  retryCount?: number;
+  retryMaxDelay?: number;
+};
 
 export class FileSearchAssistant {
   assistant?: OpenAI.Beta.Assistants.Assistant;
@@ -32,21 +40,25 @@ export class FileSearchAssistant {
   instructions: string;
   temperature?: number;
   topP?: number;
+  gptModel?: string;
+  retryCount?: number;
+  retryMaxDelay?: number;
 
   constructor(
     filePaths: string[],
     instructions: string,
-    name?: string,
-    temperature?: number,
-    topP?: number
+    options?: FileSearchAssistantOptions
   ) {
     this.name =
       `${ASSISTANT_NAME_PREFIX}_` +
-      (name ?? `file_search_${runId}_${randomUUID()}`);
+      (options?.name ?? `file_search_${runId}_${randomUUID()}`);
     this.filePaths = filePaths;
     this.instructions = instructions;
-    this.temperature = temperature;
-    this.topP = topP;
+    this.temperature = options?.temperature;
+    this.topP = options?.topP;
+    this.gptModel = options?.gptModel;
+    this.retryCount = options?.retryCount;
+    this.retryMaxDelay = options?.retryMaxDelay;
   }
 
   async init() {
@@ -175,7 +187,7 @@ export class FileSearchAssistant {
               vector_store_ids: [vectorStore.id],
             },
           },
-          model: (await argv).gptModel,
+          model: this.gptModel ?? (await argv).gptModel,
           temperature: this.temperature,
           top_p: this.topP,
         });
@@ -282,7 +294,7 @@ export class FileSearchAssistant {
     const spinnieName = thread.id;
     spinnies?.add(spinnieName, { text: `${thread.id}: start` });
 
-    const model = (await argv).gptModel;
+    const model = this.gptModel ?? (await argv).gptModel;
     consola
       .withTag([this.assistant?.id, thread.id].join(","))
       .debug(`Using model: ${model}`);

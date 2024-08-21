@@ -240,7 +240,12 @@ ${JSON.stringify(programWriterOutputExample)}
 
 ${goodAndBadProgramFeatures}
 `,
-    "program_writer"
+    {
+      name: "program_writer",
+      gptModel: finalParams.gptModel,
+      retryCount: finalParams.retryCount,
+      retryMaxDelay: finalParams.retryMaxDelay,
+    }
   );
 
   const inforExtractorOutputExample: InfoExtractorOutput = {
@@ -412,7 +417,12 @@ ${JSON.stringify(scriptWriterInputExampleEnd)}
 出力:
 ${JSON.stringify(scriptWriterOutputExampleEnd)}
 `,
-    "script_writer"
+    {
+      name: "script_writer",
+      gptModel: finalParams.gptModel,
+      retryCount: finalParams.retryCount,
+      retryMaxDelay: finalParams.retryMaxDelay,
+    }
   );
 
   // ここから処理を開始 ----------------------------------------------------------
@@ -461,7 +471,12 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
       const extractor = new FileSearchAssistant(
         filePaths,
         infoExtractorSystemPrompt,
-        `${task}_${runId}`
+        {
+          name: `${task}_${runId}`,
+          gptModel: finalParams.gptModel,
+          retryCount: finalParams.retryCount,
+          retryMaxDelay: finalParams.retryMaxDelay,
+        }
       );
       await extractor.init();
 

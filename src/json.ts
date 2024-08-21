@@ -2,7 +2,6 @@ import { jsonrepair } from "jsonrepair";
 
 import { ChatCompletion } from "./openai/chat";
 import { consola } from "./logging";
-import { argv } from "./args";
 
 export function extractJSONString(text: string) {
   const jsonRegex = /\{.*\}/ms;
@@ -59,6 +58,7 @@ Valid JSON text
 \`\`\`
 `,
           {
+            model: "gpt-4o-mini",
             temperature: 0.25,
             response_format: {
               type: "json_object",

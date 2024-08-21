@@ -10,17 +10,33 @@ import { randomUUID } from "crypto";
 
 type ChatCompletionStreamingOptions = Omit<
   ChatCompletionCreateParamsStreaming,
-  "messages" | "model" | "stream"
+  "messages" | "stream"
 >;
+
+type ChatCompletionOptions = ChatCompletionStreamingOptions & {
+  retryCount?: number;
+  retryMaxDelay?: number;
+};
 
 export class ChatCompletion {
   messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];
   systemPrompt: string;
   options?: ChatCompletionStreamingOptions;
+  retryCount: number = 5;
+  retryMaxDelay: number = 150000;
 
-  constructor(systemPrompt: string, options?: ChatCompletionStreamingOptions) {
+  constructor(systemPrompt: string, options?: ChatCompletionOptions) {
     this.systemPrompt = systemPrompt;
-    this.options = options;
+    // Omit the retry options from the streaming options
+    this.options = options
+      ? (Object.fromEntries(
+          Object.entries(options).filter(
+            ([key]) => !["retryCount", "retryMaxDelay"].includes(key)
+          )
+        ) as ChatCompletionStreamingOptions)
+      : undefined;
+    this.retryCount = options?.retryCount ?? this.retryCount;
+    this.retryMaxDelay = options?.retryMaxDelay ?? this.retryMaxDelay;
   }
 
   reset() {
