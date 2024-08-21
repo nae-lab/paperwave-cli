@@ -242,7 +242,7 @@ ${goodAndBadProgramFeatures}
 `,
     {
       name: "program_writer",
-      gptModel: finalParams.gptModel,
+      llmModel: finalParams.llmModel,
       retryCount: finalParams.retryCount,
       retryMaxDelay: finalParams.retryMaxDelay,
     }
@@ -419,7 +419,7 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
 `,
     {
       name: "script_writer",
-      gptModel: finalParams.gptModel,
+      llmModel: finalParams.llmModel,
       retryCount: finalParams.retryCount,
       retryMaxDelay: finalParams.retryMaxDelay,
     }
@@ -473,7 +473,7 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
         infoExtractorSystemPrompt,
         {
           name: `${task}_${runId}`,
-          gptModel: finalParams.gptModel,
+          llmModel: finalParams.llmModel,
           retryCount: finalParams.retryCount,
           retryMaxDelay: finalParams.retryMaxDelay,
         }

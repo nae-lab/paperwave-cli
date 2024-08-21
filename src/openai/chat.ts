@@ -58,7 +58,7 @@ export class ChatCompletion {
 
     const stream = await openai.chat.completions.create({
       messages: this.messages,
-      model: (await argv).gptModel,
+      model: this.options?.model ?? (await argv).llmModel,
       stream: true,
       ...this.options,
     });

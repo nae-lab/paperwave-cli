@@ -25,7 +25,7 @@ type FileSearchAssistantOptions = {
   name?: string;
   temperature?: number;
   topP?: number;
-  gptModel?: string;
+  llmModel?: string;
   retryCount?: number;
   retryMaxDelay?: number;
 };
@@ -40,7 +40,7 @@ export class FileSearchAssistant {
   instructions: string;
   temperature?: number;
   topP?: number;
-  gptModel?: string;
+  llmModel?: string;
   retryCount?: number;
   retryMaxDelay?: number;
 
@@ -56,7 +56,7 @@ export class FileSearchAssistant {
     this.instructions = instructions;
     this.temperature = options?.temperature;
     this.topP = options?.topP;
-    this.gptModel = options?.gptModel;
+    this.llmModel = options?.llmModel;
     this.retryCount = options?.retryCount;
     this.retryMaxDelay = options?.retryMaxDelay;
   }
@@ -187,7 +187,7 @@ export class FileSearchAssistant {
               vector_store_ids: [vectorStore.id],
             },
           },
-          model: this.gptModel ?? (await argv).gptModel,
+          model: this.llmModel ?? (await argv).llmModel,
           temperature: this.temperature,
           top_p: this.topP,
         });
@@ -294,7 +294,7 @@ export class FileSearchAssistant {
     const spinnieName = thread.id;
     spinnies?.add(spinnieName, { text: `${thread.id}: start` });
 
-    const model = this.gptModel ?? (await argv).gptModel;
+    const model = this.llmModel ?? (await argv).llmModel;
     consola
       .withTag([this.assistant?.id, thread.id].join(","))
       .debug(`Using model: ${model}`);

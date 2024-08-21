@@ -19,7 +19,7 @@ export const argv = yargs(hideBin(process.argv))
       type: "number",
       default: 150000,
     },
-    "gpt-model": {
+    "llm-model": {
       alias: "g",
       type: "string",
       default: "gpt-4o",
