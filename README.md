@@ -18,6 +18,7 @@ In addition to the CLI setup, you need to set up the following:
 1. Place firebase service account key file at `./paperwave-firebase-adminsdk.json`
 2. Set up the environment variables
    - Edit the `.env` file to set your key file path
+   - Set firestore collection ids in the `.env` file
 
 ## Setup for Docker build
 

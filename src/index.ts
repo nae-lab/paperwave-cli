@@ -8,7 +8,7 @@ import { db, bucket } from "./firebase";
 import { consola, getLogs } from "./logging";
 import { Episode, episodeDataConverter } from "./episodes";
 
-const COLLECTION_ID = "episode-dev2";
+const COLLECTION_ID = process.env.EPISODES_COLLECTION_ID || "episodes";
 
 export interface DocumentSnapshotType extends Object {
   [key: string]: any | Date;
