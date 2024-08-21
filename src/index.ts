@@ -1,11 +1,11 @@
-import { main } from "./main"; // main.tsからインポート
-import path, { basename } from "path";
+import path from "path";
 import appRootPath from "app-root-path";
 import * as admin from "firebase-admin";
 import * as fs from "fs";
+
+import { main } from "./main"; // main.tsからインポート
 import { db, bucket } from "./firebase";
-import { uploadLog } from "./logging";
-import { consola } from "./logging";
+import { uploadLog, consola } from "./logging";
 
 const COLLECTION_ID = "episode-test-yahagi";
 
@@ -47,16 +47,25 @@ export class RecordingOptions implements DocumentSnapshotType {
 
 function extractFilePath(firebaseUrl: string): string {
   const url = new URL(firebaseUrl);
-  const filePath = url.pathname.split("/o/")[1]; // '/o/'の後ろの部分を取得
-  return decodeURIComponent(filePath); // '%2F'などをデコードして元のパスに戻す
+
+  if (url.hostname === "firebasestorage.googleapis.com") {
+    const filePath = url.pathname.split("/o/")[1]; // '/o/'の後ろの部分を取得
+    return decodeURIComponent(filePath); // '%2F'などをデコードして元のパスに戻す
+  } else if (url.hostname === "storage.googleapis.com") {
+    const filePath = url.pathname.split("/paperwave.appspot.com/")[1]; // '/paperwave.appspot.com/'の後ろの部分を取得
+    return decodeURIComponent(filePath); // '%2F'などをデコードして元のパスに戻す
+  } else {
+    throw new Error("Invalid Firebase Storage URL");
+  }
 }
 
 async function downloadFile(firebaseUrl: string): Promise<string> {
   const filePath = extractFilePath(firebaseUrl);
-  const filename = basename(filePath); // ファイル名を取得
+  const filename = path.basename(filePath); // ファイル名を取得
   const destFilename = path.join(appRootPath + `/downloads/${filename}`); // 保存先のファイル名
 
   // ファイルをダウンロード
+  consola.debug(`Downloading file from ${firebaseUrl} to ${destFilename}`);
   await bucket.file(filePath).download({ destination: destFilename });
 
   console.log(`File downloaded to ${destFilename}`);
@@ -72,8 +81,7 @@ async function processRecordingOptions(options: any) {
     const downloadedPaper = await Promise.all(
       params.paperUrls.map((url: string) => downloadFile(url))
     );
-    //   const downloadedBGM = await downloadFile(params.bgm);
-    const downloadedBGM = "assets/podcast-jazz-music.mp3";
+    const downloadedBGM = await downloadFile(params.bgm);
 
     // ダウンロードしたファイルパスをmain関数に渡す
     const updatedParams = {

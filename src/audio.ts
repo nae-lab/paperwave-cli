@@ -46,16 +46,22 @@ export class AudioGenerator {
   distDir: string;
   workDir: string;
   bgmPath?: string;
+  bgmVolume?: number;
+  ttsConcurrency?: number;
 
   constructor(
     script: Turn[],
     outputDir: string,
     outputFilename: string,
-    bgmPath?: string
+    bgmPath?: string,
+    bgmVolume?: number,
+    ttsConcurrency?: number
   ) {
     this.script = script;
     this.outputFilename = outputFilename || "output";
     this.bgmPath = bgmPath;
+    this.bgmVolume = bgmVolume;
+    this.ttsConcurrency = ttsConcurrency;
 
     // Initialize directories
     this.outputDir = outputDir;
@@ -89,9 +95,7 @@ export class AudioGenerator {
 
     // Synthesize speech for each turn in parallel
     const { errors } = await PromisePool.withConcurrency(
-      (
-        await argv
-      ).ttsConcurrency
+      this.ttsConcurrency ?? 20
     )
       .for(this.script)
       .process(async (turn, index, pool) => {
@@ -192,7 +196,7 @@ export class AudioGenerator {
     await exec(extendCommand);
 
     // Add background music to the audio with a specified volume
-    const bgmVolume = (await argv).bgmVolume ?? 0.1;
+    const bgmVolume = this.bgmVolume ?? 0.1;
     const mixCommand = `${ffmpegPath} -i ${inputFilename} -i ${bgmExtendedFilename} -filter_complex "[0:a]volume=1.9[a0];[1:a]volume=${bgmVolume}[a1];[a0][a1]amix=inputs=2:duration=first" -y ${outputFilename}`;
     consola.debug(`Running command: ${mixCommand}`);
     await exec(mixCommand);
@@ -203,7 +207,7 @@ export class AudioGenerator {
     consola.debug(`Running command: ${command}`);
     const { stdout } = await exec(command);
     const duration = stdout.trim();
-    consola.debug(`Duration: ${duration}`);
+    consola.debug(`Duration of ${filename}: ${duration}`);
     return duration;
   }
 }

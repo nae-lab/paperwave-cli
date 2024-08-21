@@ -552,12 +552,27 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
   // Generate audio
   consola.info("音声ファイルを生成します");
   const audioOutputDir = path.join(runLogDir, "output_audio");
-  const bgmPath = path.join(appRootPath.path, finalParams.bgm as string);
+  const bgmPath = path.resolve(appRootPath.path, finalParams.bgm as string);
+  let bgmVolume;
+  try {
+    bgmVolume = parseFloat(finalParams.bgmVolume);
+  } catch (e) {
+    bgmVolume = 0.25;
+  }
+  let ttsConcurrency;
+  try {
+    ttsConcurrency = parseInt(finalParams.ttsConcurrency);
+  } catch (e) {
+    ttsConcurrency = 20;
+  }
+
   const audioGenerator = new AudioGenerator(
     script,
     audioOutputDir,
     outputFileNameText ? `radio-${outputFileNameText}` : "output",
-    bgmPath
+    bgmPath,
+    bgmVolume,
+    ttsConcurrency
   );
 
   return await audioGenerator.generate();
