@@ -4,7 +4,7 @@
   "description": "",
   "main": "src/index.js",
   "scripts": {
-    "server": "ts-node src/index.ts",
+    "start": "ts-node src/index.ts",
     "main": "ts-node src/main.ts",
     "clean": "ts-node scripts/clean-assistants.ts",
     "clean:files": "ts-node scripts/clean-files.ts",
