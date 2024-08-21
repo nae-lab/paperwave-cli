@@ -12,6 +12,7 @@ import { db, bucket } from "./firebase";
 import { createConsola, LogLevels, LogType, ConsolaReporter } from "consola";
 
 import { argv } from "./args";
+import { log } from "console";
 
 const exec = util.promisify(_exec);
 
@@ -124,13 +125,13 @@ async function setupConsola() {
   consola.debug(`Command: ${command}`);
 }
 
-export async function uploadLog(snapshot: admin.firestore.DocumentSnapshot) {
+export function getLogs() {
   const logFile = `${runLogDir}/${runId}.log`;
   // ログファイルを読み取る
   const logFileContent = fs.readFileSync(logFile, "utf8");
-  await snapshot.ref.update({
-    recordingLogs: [logFileContent],
-  });
+  const logLines = logFileContent.split("\n");
+
+  return logLines;
 }
 
 setupConsola();

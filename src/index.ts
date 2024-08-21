@@ -5,9 +5,10 @@ import * as fs from "fs";
 
 import { main } from "./main"; // main.tsからインポート
 import { db, bucket } from "./firebase";
-import { uploadLog, consola } from "./logging";
+import { consola, getLogs } from "./logging";
+import { Episode, episodeDataConverter } from "./episodes";
 
-const COLLECTION_ID = "episode-test-yahagi";
+const COLLECTION_ID = "episode-dev2";
 
 export interface DocumentSnapshotType extends Object {
   [key: string]: any | Date;
@@ -105,31 +106,41 @@ const handleNewProgram = async (
   console.log("New program added:", data);
   // recordingOptionsの読み取りと処理
   const recordingOptions = data.recordingOptions;
+  const docRef = snapshot.ref.withConverter(episodeDataConverter());
   if (recordingOptions) {
     try {
       console.log("Processing recordingOptions:", recordingOptions);
-      await snapshot.ref.update({ status: "processing" });
+      await docRef.update({ status: "processing" });
       const processedURL = await processRecordingOptions(recordingOptions);
-      // 結果をドキュメントに更新
-      await snapshot.ref.update({
-        isRecordingCompleted: true,
-        isRecordingFailed: false,
-        contentUrl: processedURL,
-      });
-      await uploadLog(snapshot);
+      const logLines = getLogs();
+
+      if (processedURL) {
+        const updatedData: Partial<Episode> = {
+          isRecordingCompleted: true,
+          isRecordingFailed: false,
+          contentUrl: processedURL.toString(),
+          recordingLogs: logLines,
+        };
+        // 結果をドキュメントに更新
+        await docRef.update(updatedData);
+      } else {
+        console.error("Processing failed. No valid URL returned.");
+        await docRef.update({ isRecordingFailed: true });
+      }
     } catch (error) {
       consola.error("Error processing recordingOptions:", error);
-      await snapshot.ref.update({ isRecordingFailed: true });
+      await docRef.update({ isRecordingFailed: true });
     }
   } else {
     consola.log("No recordingOptions found.");
-    await snapshot.ref.update({ isRecordingFailed: true });
+    await docRef.update({ isRecordingFailed: true });
   }
 };
 
 // episodeコレクションの監視
 db.collection(COLLECTION_ID).onSnapshot((snapshot) => {
   const promises = snapshot.docChanges().map((change) => {
+    console.log("change:", change.type);
     if (change.type === "added") {
       if (
         change.doc.data().isRecordingCompleted === false &&

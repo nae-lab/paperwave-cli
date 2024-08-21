@@ -1,7 +1,12 @@
-import { getStorage } from "firebase-admin/storage";
-import path from "path";
 import appRootPath from "app-root-path";
 import * as admin from "firebase-admin";
+import { getStorage } from "firebase-admin/storage";
+import path from "path";
+import { Timestamp } from "firebase-admin/firestore";
+
+export interface DocumentSnapshotType extends Object {
+  [key: string]: any | Timestamp | Date;
+}
 
 // Firebaseのサービスアカウントキーのパス
 let serviceAccount: admin.ServiceAccount | string;
