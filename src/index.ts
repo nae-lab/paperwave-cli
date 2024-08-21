@@ -1,4 +1,5 @@
 import path from "path";
+import process from "process";
 import appRootPath from "app-root-path";
 import * as admin from "firebase-admin";
 import * as fs from "fs";
@@ -8,6 +9,7 @@ import { db, bucket } from "./firebase";
 import { consola, getLogs } from "./logging";
 import { Episode, episodeDataConverter } from "./episodes";
 
+console.log("EPISODES_COLLECTION_ID:", process.env.EPISODES_COLLECTION_ID);
 const COLLECTION_ID = process.env.EPISODES_COLLECTION_ID || "episodes";
 
 export interface DocumentSnapshotType extends Object {
