@@ -138,9 +138,9 @@ const handleNewProgram = async (
 };
 
 // episodeコレクションの監視
+console.log("Listening for new episodes on", COLLECTION_ID);
 db.collection(COLLECTION_ID).onSnapshot((snapshot) => {
   const promises = snapshot.docChanges().map((change) => {
-    console.log("change:", change.type);
     if (change.type === "added") {
       if (
         change.doc.data().isRecordingCompleted === false &&
