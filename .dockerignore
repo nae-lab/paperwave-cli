@@ -1,6 +1,10 @@
+.DS_Store
 node_modules
 npm-debug.log
 dist
 assetsdownloads
+assets
 logs
 out
+downloads
+.env*

@@ -54,13 +54,13 @@ export class ChatCompletion {
 
     const spinnieName = "chatcmpl-" + randomUUID();
     let spinnieDisplayName: string | undefined = undefined;
-    spinnies.add(spinnieName, { text: `${spinnieDisplayName}: start` });
+    spinnies?.add(spinnieName, { text: `${spinnieDisplayName}: start` });
 
     let snapshot_length = 0;
     for await (const chunk of stream) {
       if (spinnieDisplayName === undefined) {
         spinnieDisplayName = chunk.id;
-        spinnies.update(spinnieName, {
+        spinnies?.update(spinnieName, {
           text: `${spinnieDisplayName}: ${result.content}`,
         });
       }
@@ -77,7 +77,7 @@ export class ChatCompletion {
 
       if ((result.content?.length ?? 0) - snapshot_length > 30) {
         snapshot_length = result.content?.length ?? 0;
-        spinnies.update(spinnieName, {
+        spinnies?.update(spinnieName, {
           text: `${spinnieDisplayName}: ${result.content
             ?.toString()
             .slice(-60)
@@ -86,7 +86,7 @@ export class ChatCompletion {
       }
     }
 
-    spinnies.succeed(spinnieName, { text: `${spinnieDisplayName}: finished` });
+    spinnies?.succeed(spinnieName, { text: `${spinnieDisplayName}: finished` });
     consola
       .withTag(spinnieDisplayName ?? "")
       .debug(`Text generation finished for ${spinnieDisplayName}`);

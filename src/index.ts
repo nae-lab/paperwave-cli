@@ -5,6 +5,7 @@ import * as admin from "firebase-admin";
 import * as fs from "fs";
 import { db, bucket } from "./firebase";
 import { uploadLog } from "./logging";
+import { consola } from "./logging";
 
 const COLLECTION_ID = "episode-test-yahagi";
 
@@ -104,15 +105,16 @@ const handleNewProgram = async (
       // 結果をドキュメントに更新
       await snapshot.ref.update({
         isRecordingCompleted: true,
+        isRecordingFailed: false,
         contentUrl: processedURL,
       });
       await uploadLog(snapshot);
     } catch (error) {
-      console.error("Error processing recordingOptions:", error);
+      consola.error("Error processing recordingOptions:", error);
       await snapshot.ref.update({ isRecordingFailed: true });
     }
   } else {
-    console.log("No recordingOptions found.");
+    consola.log("No recordingOptions found.");
     await snapshot.ref.update({ isRecordingFailed: true });
   }
 };

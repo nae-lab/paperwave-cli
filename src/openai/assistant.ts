@@ -280,7 +280,7 @@ export class FileSearchAssistant {
       .debug("Thread created with id: ", thread.id);
 
     const spinnieName = thread.id;
-    spinnies.add(spinnieName, { text: `${thread.id}: start` });
+    spinnies?.add(spinnieName, { text: `${thread.id}: start` });
 
     const model = (await argv).gptModel;
     consola
@@ -307,7 +307,7 @@ export class FileSearchAssistant {
         );
       } catch (error) {
         consola.withTag([this.assistant?.id, thread.id].join(",")).error(error);
-        spinnies.fail(spinnieName, { text: `${thread.id}: failed` });
+        spinnies?.fail(spinnieName, { text: `${thread.id}: failed` });
         return [];
       }
       consola
@@ -372,7 +372,7 @@ export class FileSearchAssistant {
       }
     }
 
-    spinnies.succeed(spinnieName, { text: `${thread.id}: finished` });
+    spinnies?.succeed(spinnieName, { text: `${thread.id}: finished` });
 
     return results;
   }
@@ -418,7 +418,7 @@ export class FileSearchAssistant {
           const status = `${threadId}: ${snapshot.value
             .slice(-60)
             .replace(/\s/g, " ")}`;
-          spinnies.update(spinnieName, { text: status });
+          spinnies?.update(spinnieName, { text: status });
           snapshot_length = snapshot.value.length;
         }
       });
@@ -438,7 +438,7 @@ export class FileSearchAssistant {
       stream.on("toolCallCreated", (toolCall) => {
         consola.withTag(threadId).verbose(`assistant > ${toolCall.type}`);
         if (spinnieName) {
-          spinnies.update(spinnieName, {
+          spinnies?.update(spinnieName, {
             text: `${threadId}: ${toolCall.type}`,
           });
         }

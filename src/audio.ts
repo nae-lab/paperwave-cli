@@ -16,7 +16,6 @@ import {
 } from "./openai/tts";
 import { argv } from "./args";
 import { consola } from "./logging";
-import { spinnies } from "./spinnies";
 import { SingleBar } from "./progress";
 import appRootPath from "app-root-path";
 

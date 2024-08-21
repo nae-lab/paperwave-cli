@@ -12,7 +12,6 @@ import sanitize from "sanitize-filename";
 import { FileSearchAssistant } from "./openai/assistant";
 import { argv } from "./args";
 import { consola, runId, runLogDir } from "./logging";
-import { spinnies } from "./spinnies";
 import { AudioGenerator, TurnSchema, Turn } from "./audio";
 import { VoiceOptions } from "./openai/tts";
 import { merge } from "lodash";
@@ -527,18 +526,6 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
             -1
           );
 
-          consola.debug(
-            `Script writer output: ${JSON.stringify(result, null, 2).slice(
-              0,
-              200
-            )}\n
------------------------\n
-${JSON.stringify(result, null, 2).slice(-200)}\n\n
------------------------\n
-script length in program: ${programItem.conversationTurns}\n
-script actual length: ${result?.script.length}`
-          );
-
           if (!result || !result.script) {
             throw new Error("Script writer did not return a valid script");
           }
@@ -559,6 +546,9 @@ script actual length: ${result?.script.length}`
 
   consola.verbose("All script of this program...", script);
 
+  consola.info("アシスタントを削除します");
+  await Promise.all([programWriter.deinit(), scriptWriter.deinit()]);
+
   // Generate audio
   consola.info("音声ファイルを生成します");
   const audioOutputDir = path.join(runLogDir, "output_audio");
@@ -570,8 +560,6 @@ script actual length: ${result?.script.length}`
     bgmPath
   );
 
-  consola.info("アシスタントを削除します");
-  await Promise.all([programWriter.deinit(), scriptWriter.deinit()]);
   return await audioGenerator.generate();
 }
 if (require.main === module) {

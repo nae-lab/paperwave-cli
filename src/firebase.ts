@@ -7,6 +7,12 @@ let serviceAccount: admin.ServiceAccount | string;
 if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
   serviceAccount = require(process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string);
 } else {
+  console.log(
+    "Using environment variables for Firebase service account",
+    process.env.FIREBASE_PROJECT_ID,
+    process.env.FIREBASE_ADMIN_PRIVATE_KEY,
+    process.env.FIREBASE_CLIENT_EMAIL
+  );
   serviceAccount = {
     projectId: process.env.FIREBASE_PROJECT_ID,
     privateKey: process.env.FIREBASE_ADMIN_PRIVATE_KEY,

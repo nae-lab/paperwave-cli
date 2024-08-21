@@ -13,11 +13,11 @@ export class SingleBar {
     barPreset?: CLIProgress.Preset
   ) {
     this.spinnieName = randomUUID();
-    spinnies.add(this.spinnieName, { text: "Progress bar" });
+    spinnies?.add(this.spinnieName, { text: "Progress bar" });
 
     this.stream = new PassThrough();
     this.stream.on("data", (chunk) => {
-      spinnies.update(this.spinnieName, {
+      spinnies?.update(this.spinnieName, {
         text: chunk.toString(),
       });
     });
@@ -39,7 +39,7 @@ export class SingleBar {
 
   stop(spinnieMessage?: string) {
     this.bar.stop();
-    spinnies.succeed(this.spinnieName, {
+    spinnies?.succeed(this.spinnieName, {
       text: spinnieMessage || "Task Done.",
     });
     this.stream.end();

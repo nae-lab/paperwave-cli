@@ -1,6 +1,10 @@
 # 公式のNode.js 20ランタイムを親イメージとして使用
 FROM node:20
 
+ENV DOCKER true
+ENV LOG_DIR logs
+ENV FIREBASE_SERVICE_ACCOUNT_KEY /usr/src/app/paperwave-firebase-adminsdk.json
+
 # pnpmをインストール
 RUN npm install -g pnpm
 
@@ -13,6 +17,10 @@ RUN pnpm install --frozen-lockfile
 
 # 残りのアプリケーションコードをすべてコピー
 COPY . .
+RUN ["mkdir", "downloads"]
+RUN ["mkdir", "logs"]
+RUN ["mkdir", "out"]
 
 # mainスクリプトを実行してアプリを起動
-CMD ["pnpm", "run", "main"]
+# CMD ["ls", "-l", "-a"]
+CMD ["pnpm", "run", "main", "--log=debug"]
