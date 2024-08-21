@@ -70,5 +70,5 @@ Before buliding the docker image, you need to **increment the version in the `pa
 pnpm docker:build # Build docker image
 pnpm docker:push  # Push docker image to registry
 # ! create-gce-with-container.sh is not included in the repository!
-./scripts/create-gce-with-container.sh # Create GCE instance with the pushed image
+./scripts/create-gce-with-container.sh dev|production # Create GCE instance with the pushed image
 ```
