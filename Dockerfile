@@ -22,5 +22,4 @@ RUN ["mkdir", "logs"]
 RUN ["mkdir", "out"]
 
 # mainスクリプトを実行してアプリを起動
-# CMD ["ls", "-l", "-a"]
-CMD ["pnpm", "run", "main", "--log=debug"]
+CMD ["pnpm", "run", "server", "--log=debug"]

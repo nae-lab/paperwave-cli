@@ -1,12 +1,16 @@
 {
   "name": "llm-radio-node-cli",
-  "version": "1.0.0",
+  "version": "0.1.9",
   "description": "",
   "main": "src/index.js",
   "scripts": {
-    "main": "ts-node src/index.ts",
+    "server": "ts-node src/index.ts",
+    "main": "ts-node src/main.ts",
     "clean": "ts-node scripts/clean-assistants.ts",
-    "clean:files": "ts-node scripts/clean-files.ts"
+    "clean:files": "ts-node scripts/clean-files.ts",
+    "paperwaveVersion": "ts-node scripts/dump-version.ts",
+    "docker:build": "docker build --platform linux/amd64 . -t paperwave-server -t $(grep PAPERWAVE_DOCKER_REGISTRY .env | cut -d '=' -f2 | cut -d '\"' -f2):v$(ts-node scripts/dump-version.ts) -t $(grep PAPERWAVE_DOCKER_REGISTRY .env | cut -d '=' -f2 | cut -d '\"' -f2):latest",
+    "docker:push": "docker push $(grep PAPERWAVE_DOCKER_REGISTRY .env | cut -d '=' -f2 | cut -d '\"' -f2):v$(ts-node scripts/dump-version.ts) && docker push $(grep PAPERWAVE_DOCKER_REGISTRY .env | cut -d '=' -f2 | cut -d '\"' -f2):latest"
   },
   "keywords": [],
   "author": "",

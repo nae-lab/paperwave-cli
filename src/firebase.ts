@@ -1,11 +1,16 @@
 import { getStorage } from "firebase-admin/storage";
 import path from "path";
+import appRootPath from "app-root-path";
 import * as admin from "firebase-admin";
 
 // Firebaseのサービスアカウントキーのパス
 let serviceAccount: admin.ServiceAccount | string;
 if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-  serviceAccount = require(process.env.FIREBASE_SERVICE_ACCOUNT_KEY as string);
+  const keyPath = path.resolve(
+    appRootPath.path,
+    process.env.FIREBASE_SERVICE_ACCOUNT_KEY
+  );
+  serviceAccount = require(keyPath);
 } else {
   console.log(
     "Using environment variables for Firebase service account",
