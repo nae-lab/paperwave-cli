@@ -112,14 +112,14 @@ const handleNewProgram = async (
       console.log("Processing recordingOptions:", recordingOptions);
       await docRef.update({ status: "processing" });
       const processedURL = await processRecordingOptions(recordingOptions);
-      const logLines = getLogs();
+      // const logLines = getLogs();
 
       if (processedURL) {
         const updatedData: Partial<Episode> = {
           isRecordingCompleted: true,
           isRecordingFailed: false,
           contentUrl: processedURL.toString(),
-          recordingLogs: logLines,
+          // recordingLogs: logLines,
         };
         // 結果をドキュメントに更新
         await docRef.update(updatedData);
