@@ -462,9 +462,7 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
   ];
 
   const { results: extractionResults } = await PromisePool.withConcurrency(
-    (
-      await argv
-    ).assistantConcurrency
+    finalParams.assistantConcurrency
   )
     .for(extractTasks)
     .process(async (task, index, pool) => {
