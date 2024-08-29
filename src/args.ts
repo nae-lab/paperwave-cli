@@ -58,6 +58,11 @@ export const argv = yargs(hideBin(process.argv))
       alias: "m",
       type: "number",
     },
+    language: {
+      type: "string",
+      default: "en",
+      choices: ["en", "ja", "ko"],
+    },
     bgm: {
       alias: "b",
       type: "string",

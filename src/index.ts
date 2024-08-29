@@ -7,45 +7,13 @@ import * as fs from "fs";
 import { main } from "./main"; // main.tsからインポート
 import { db, bucket } from "./firebase";
 import { consola, getLogs } from "./logging";
-import { Episode, episodeDataConverter } from "./episodes";
+import { Episode, RecordingOptions, episodeDataConverter } from "./episodes";
 
 console.log("EPISODES_COLLECTION_ID:", process.env.EPISODES_COLLECTION_ID);
 const COLLECTION_ID = process.env.EPISODES_COLLECTION_ID || "episodes";
 
 export interface DocumentSnapshotType extends Object {
   [key: string]: any | Date;
-}
-
-export class RecordingOptions implements DocumentSnapshotType {
-  paperUrls: string[];
-  minute: number;
-  bgm: string;
-  bgmVolume: number;
-  llmModel: string;
-  chatConcurrency: number;
-  assistantConcurrency: number;
-  ttsModel: string;
-  ttsConcurrency: number;
-  retryCount: number;
-  retryMaxDelay: number;
-
-  constructor(options: { paperUrls: string[] } & Partial<RecordingOptions>) {
-    if (!options.paperUrls || options.paperUrls.length === 0) {
-      throw new Error("At least one paper URL is required.");
-    }
-
-    this.paperUrls = options.paperUrls ?? [];
-    this.minute = options.minute ?? 15;
-    this.bgm = options.bgm ?? "";
-    this.bgmVolume = options.bgmVolume ?? 0.25;
-    this.llmModel = options.llmModel ?? "gpt-4o-mini";
-    this.chatConcurrency = options.chatConcurrency ?? 10;
-    this.assistantConcurrency = options.assistantConcurrency ?? 10;
-    this.ttsModel = options.ttsModel ?? "tts-1";
-    this.ttsConcurrency = options.ttsConcurrency ?? 20;
-    this.retryCount = options.retryCount ?? 5;
-    this.retryMaxDelay = options.retryMaxDelay ?? 150000;
-  }
 }
 
 function extractFilePath(firebaseUrl: string): string {

@@ -14,107 +14,14 @@ import { argv } from "./args";
 import { consola, runId, runLogDir } from "./logging";
 import { AudioGenerator, TurnSchema, Turn } from "./audio";
 import { VoiceOptions } from "./openai/tts";
+import { LanguageLabels, LanguageOptions } from "./episodes";
 import { merge } from "lodash";
 
 const AVERAGE_TURN_DURATION_SECONDS = 13.033141; // https://ut-naelab.slack.com/archives/C07ACRCVAPK/p1722651927644929
 
-const goodAndBadProgramFeatures = `
-# 望ましい番組の特徴
-・論文の詳細までを網羅する
-・専門用語は専門的な定義などを交えて詳しく解説する
-・論文の内容を正確に反映する
-
-# 不適切な番組の特徴
-・論文の内容を省略したり、誤解を招くような内容
-・論文の内容と関係ない話題を含む
-・専門用語をそのまま使い、説明を省略する
-・研究者の発言を適切に引用しない
-・CMや番組の紹介，次回予告など、論文と関係ない内容を含む
-・研究者の個人的エピソードなど，論文に記載されてない情報を含む
-`;
-
 function minutesToTurns(minute: number): number {
   return Math.floor((minute * 60) / AVERAGE_TURN_DURATION_SECONDS);
 }
-
-const ProgramSectionSchema = Type.Object(
-  {
-    title: Type.String({
-      description: "セクションのトピック",
-    }),
-    conversationTurns: Type.Number({
-      description: "このセクションでの会話のターン数",
-    }),
-    contents: Type.Array(
-      Type.String({
-        description: "セクションの内容",
-      })
-    ),
-  },
-  {
-    description: "番組を構成する1つのセクション",
-  }
-);
-
-type ProgramSection = Static<typeof ProgramSectionSchema>;
-
-const ProgramWriterOutputSchema = Type.Object({
-  totalTurns: Type.Number({
-    description:
-      "総ターン数．入力された番組の長さに収まるようにターン数を設計する",
-    minimum: 1,
-  }),
-  program: Type.Array(ProgramSectionSchema, {
-    description: "番組の各セクションのリスト",
-  }),
-});
-
-type ProgramWriterOutput = Static<typeof ProgramWriterOutputSchema>;
-
-const InfoExtractorOutputSchema = Type.Object({
-  result: Type.String({
-    description: "論文PDFから抽出された情報",
-  }),
-});
-
-type InfoExtractorOutput = Static<typeof InfoExtractorOutputSchema>;
-
-const ScriptWriterInputSchema = Type.Object(
-  {
-    author: Type.String({
-      description: "紹介される論文の著者",
-    }),
-    currentSection: ProgramSectionSchema,
-    nextSection: Type.Optional(ProgramSectionSchema),
-  },
-  {
-    description: `脚本家に入力される情報
-  - author: 紹介される論文の著者
-  - currentSection: 脚本家が脚本を生成する現在のSectionの情報
-  - nextSection: 次のSectionの情報．現在のセクションの情報を生成する参考にするだけで，nextSectionの脚本は生成しない`,
-  }
-);
-
-type ScriptWriterInput = Static<typeof ScriptWriterInputSchema>;
-
-const ScriptWriterOutputSchema = Type.Object({
-  title: Type.String({
-    description: "脚本を生成する現在のセクションのタイトル",
-  }),
-  nextTitle: Type.Optional(
-    Type.String({
-      description: "次のセクションのタイトル",
-    })
-  ),
-  conversationTurns: Type.Number({
-    description: "コーナーでの会話のターン数",
-  }),
-  script: Type.Array(TurnSchema, {
-    description: "コーナーの台本の全ての発言のリスト",
-  }),
-});
-
-type ScriptWriterOutput = Static<typeof ScriptWriterOutputSchema>;
 
 export interface MainParams {
   [key: string]: any;
@@ -127,22 +34,72 @@ export async function main(params?: MainParams) {
 
   consola.info(`Initializing assistant with ${filePaths.length} files`);
 
+  const goodAndBadProgramFeatures = `
+# Characteristics of desirable programs
+- Covering the details of the paper
+- Explaining technical terms in detail, including academic definitions
+- Accurately reflecting the content of the paper
+
+# Characteristics of inappropriate programmes
+- Omitting content from the paper
+- Including content that could be misleading
+- Include topics unrelated to the content of the paper
+- Use technical terms without explanations
+- Host do not properly cite the statements of researchers
+- Include content unrelated to the paper, such as commercials and previews of upcoming programmes
+- Include information not included in the paper, such as personal episodes of researchers
+`;
+
   // 構成作家
+  const ChapterSchema = Type.Object(
+    {
+      title: Type.String({
+        description: "Chapter title",
+      }),
+      conversationTurns: Type.Number({
+        description: "Number of conversation turns in this chapter",
+      }),
+      contents: Type.Array(
+        Type.String({
+          description: "Contents of the chapter",
+        })
+      ),
+    },
+    {
+      description: "A section that makes up the program",
+    }
+  );
+
+  type Chapter = Static<typeof ChapterSchema>;
+
+  const ProgramWriterOutputSchema = Type.Object({
+    totalTurns: Type.Number({
+      description:
+        "Total number of turns. Design the number of turns to fit the length of the input program",
+      minimum: 1,
+    }),
+    program: Type.Array(ChapterSchema, {
+      description: "List of sections of the program",
+    }),
+  });
+
+  type ProgramWriterOutput = Static<typeof ProgramWriterOutputSchema>;
+
   const programWriterOutputExample: ProgramWriterOutput = {
     totalTurns: 100,
     program: [
       {
-        title: "番組の導入と概要",
+        title: "Introduction and Overview of the Program",
         conversationTurns: 12,
         contents: [
-          "Introduction of the authors",
           "Introduction to the topic.",
-          "Overview of what will be covered in the program.",
-          "Explanation of why task re-allocation in new venture teams is essential.",
+          "Summary of the research paper.",
+          "Overview of what will be covered in the episode.",
         ],
       },
       {
-        title: "研究の視座「構築主義」とこの研究の重要性",
+        title:
+          "The research perspective of 'constructionism' and the importance of this research",
         conversationTurns: 16,
         contents: [
           "Historical context and background of the study.",
@@ -151,26 +108,26 @@ export async function main(params?: MainParams) {
         ],
       },
       {
-        title: "主要な関連研究",
+        title: "Main Related Work",
         conversationTurns: 14,
         contents: [
-          "関連研究が議論されてきた研究分野の概観",
+          "An overview of the field of learning science, where related research has been discussed.",
           "Explanation of the limitations of previous studies.",
           "Explanation of how this study builds upon previous research.",
         ],
       },
       {
-        title: "研究の方法",
+        title: "Methods",
         conversationTurns: 12,
         contents: [
-          "本研究で用いた質的研究の方法の解説",
-          "インタビューと観察を含む，データ収集の方法の詳細",
-          "データ分析の方法．主題分析とコーディングの方法の説明",
+          "Explanation of the qualitative research methods used in this study",
+          "Details of data collection methods, including interviews and observations",
+          "Methods of data analysis. Explanation of thematic analysis and coding methods",
           "Unique aspects of the study's methodology.",
         ],
       },
       {
-        title: "主題分析の結果とコアテーマ",
+        title: "Results of thematic analysis and core themes",
         conversationTurns: 12,
         contents: [
           "Presentation of the two core empirical themes.",
@@ -179,7 +136,7 @@ export async function main(params?: MainParams) {
         ],
       },
       {
-        title: "タスク再割り当て紛争の出現",
+        title: "The emergence of task reassignment conflicts",
         conversationTurns: 10,
         contents: [
           "How task re-allocation issues emerge.",
@@ -188,7 +145,7 @@ export async function main(params?: MainParams) {
         ],
       },
       {
-        title: "考察: 対立の展開と管理",
+        title: "Discussion: Conflict development and management",
         conversationTurns: 12,
         contents: [
           "How conflicts unfold in different teams.",
@@ -197,19 +154,21 @@ export async function main(params?: MainParams) {
         ],
       },
       {
-        title: "結論と研究の意義",
+        title: "Conclusions and significance of the research",
         conversationTurns: 12,
         contents: [
           "Summary of the study’s findings and its contributions to existing literature.",
           "Practical implications for new venture teams and conflict management.",
-          "本研究の限界と今後の展望",
+          "Limitations of the study and suggestions for future research.",
         ],
       },
     ],
   };
-  const programWriter = new FileSearchAssistant(
-    filePaths,
-    `
+
+  let programWriterInstructions;
+
+  if (finalParams.language === "ja") {
+    programWriterInstructions = `
 ゆっくり丁寧に思考してください。
 # 目的
 あなたはラジオの教育番組の放送作家です．PDFの学術論文の内容を専門的に解説する番組の章立てを考えます．
@@ -227,15 +186,67 @@ export async function main(params?: MainParams) {
 - 8ターン以下になる場合は，他のセクションと統合する．
 - 1つのセクションは最大12ターンまでにする．
 - json形式で出力する．
+`;
+  } else if (finalParams.language === "ko") {
+    programWriterInstructions = `
+천천히 신중하게 사고해 주세요.
+# 목적
+당신은 교육방송 라디오의 방송작가입니다. PDF형식의 학술논문의 내용을 전문적으로 해설하는 방송의 구성을 생각합니다.
 
-## 出力形式のスキーマ
+# 입력
+방송의 길이 (턴 수)
+
+# 출력
+연구를 해설하는 라디오 방송의 구성. PDF형식인 논문의 특징을 반영할 수 있도록 코너를 고안하여, 각 코너의 제목과 내용을 출력함.
+
+## 출력 조건
+- 섹션의 제목은 논문의 목차 구성에 들어맞을 것.
+- 섹션의 제목은 한국어로 출력할 것.
+- 한 개의 섹션에는 최저 8개의 턴이 포함될 것.
+- 8개 이하가 될 경우에는 다른 섹션과 통합할 것.
+- 1개의 섹션은 최대 12턴까지로 할 것.
+- JSON형식으로 출력할 것.
+`;
+  } else {
+    programWriterInstructions = `
+Think slowly and carefully.
+# Objective.
+You are a radio program editor of an educational program, and you are considering a chapter for a program that expertly explains the content of a PDF academic article.
+
+# Input
+Length of the program (number of turns)
+
+# Output
+Output the chapters of a radio program; devise chapters to reflect the sections of the PDF article and output the title and content of each chapter.
+
+
+## Requirements for output
+- The chapter titles should be related with the section titles of the paper.
+- Chapter titles should be output in Japanese.
+- A chapter should contain at least 8 turns.
+- If the number of turns is less than 8, the chapter should be merged with other chapters.
+- A chapter should contain a maximum of 12 turns.
+- Output in JSON format.
+`;
+  }
+
+  const programWriter = new FileSearchAssistant(
+    filePaths,
+    `
+${programWriterInstructions}
+
+Write the chapter titles and contents in ${
+      LanguageLabels[finalParams.language as LanguageOptions]
+    }.
+
+## Schema of the output
 ${JSON.stringify(ProgramWriterOutputSchema)}
 
-## 出力例（以下の出力例は論文の特徴を反映しない仮想的な例です．実際の出力では論文の章の見出しなどの情報を取り入れて構成してください．）
-入力:
+## Output example 
+Input:
 100 turns
 
-出力:
+Output:
 ${JSON.stringify(programWriterOutputExample)}
 
 ${goodAndBadProgramFeatures}
@@ -247,6 +258,14 @@ ${goodAndBadProgramFeatures}
       retryMaxDelay: finalParams.retryMaxDelay,
     }
   );
+
+  const InfoExtractorOutputSchema = Type.Object({
+    result: Type.String({
+      description: "Extracted information",
+    }),
+  });
+
+  type InfoExtractorOutput = Static<typeof InfoExtractorOutputSchema>;
 
   const inforExtractorOutputExample: InfoExtractorOutput = {
     result: "Ron Wakkary",
@@ -286,135 +305,215 @@ ${JSON.stringify(inforExtractorOutputExample)}
 ${JSON.stringify(infoExtractorOutputExampleTitle)}
 `;
 
+  const ScriptWriterInputSchema = Type.Object(
+    {
+      author: Type.String({
+        description: "The author of the paper to be introduced",
+      }),
+      currentSection: ChapterSchema,
+      nextSection: Type.Optional(ChapterSchema),
+    },
+    {
+      description: `The input to the script writer
+  - author: The author of the paper to be introduced
+  - currentSection: Information of the current chapter. The script writer uses this information to generate the script of the current chapter.
+  - nextSection: Information of the next chapter. The script writer uses this information just for reference. Never generate scripts of next chapter.`,
+    }
+  );
+
+  type ScriptWriterInput = Static<typeof ScriptWriterInputSchema>;
+
+  const ScriptWriterOutputSchema = Type.Object({
+    title: Type.String({
+      description: "Title of the current chapter",
+    }),
+    nextTitle: Type.Optional(
+      Type.String({
+        description: "Title of the next chapter",
+      })
+    ),
+    conversationTurns: Type.Number({
+      description: "Number of conversation turns in this chapter",
+    }),
+    script: Type.Array(TurnSchema, {
+      description: "Script of the chapter",
+    }),
+  });
+
+  type ScriptWriterOutput = Static<typeof ScriptWriterOutputSchema>;
+
   const radioHostVoice: VoiceOptions = "onyx";
   const guestVoice: VoiceOptions = "fable";
 
   const scriptWriterInputExampleIntro: ScriptWriterInput = {
-    author: "Ron Wakkary",
+    author: "John Doe",
     currentSection: programWriterOutputExample.program[0],
     nextSection: programWriterOutputExample.program[1],
   };
 
   const scriptWriterOutputExampleIntro: ScriptWriterOutput = {
-    title: "番組の導入と概要",
-    nextTitle: "研究の背景",
+    title: "Introduction and Overview of the Program",
+    nextTitle: "Theoretical Framework of the Study",
     conversationTurns: 12,
     script: [
       {
         speaker: radioHostVoice,
         voice: radioHostVoice,
-        text: 'PaperWaveへようこそ．今回はRon Wakkaryさんをお迎えして，"Roaming Objects: Encoding Digital Histories of Use into Shared Objects and Tools" という研究についてお話しいただきます．Ron Wakkaryさん，よろしくお願いします．',
+        text: "Welcome to PaperWave. Today, we have John Doe with us to talk about his research, 'Suppression of floating image degradation using a mechanical vibration of a dihedral corner reflector array.' John, thank you for joining us.",
       },
       {
-        speaker: "Ron Wakkary",
+        speaker: "John Doe",
         voice: guestVoice,
-        text: "Ron Wakkaryです．よろしくお願いいたします．",
+        text: "Thank you for having me.",
       },
       {
         speaker: radioHostVoice,
         voice: radioHostVoice,
-        text: "まず始めに，この研究の面白い部分を手短に教えていただけますか．",
+        text: "Let's start with an overview of your research. Can you tell us about the main focus of your study?",
       },
     ],
   };
   const scriptWriterInputExampleMiddle: ScriptWriterInput = {
-    author: "Ron Wakkary",
+    author: "John Doe",
     currentSection: programWriterOutputExample.program[2],
     nextSection: programWriterOutputExample.program[3],
   };
   const scriptWriterOutputExampleMiddle: ScriptWriterOutput = {
-    title: "考察2: 能力とツールの関係",
-    nextTitle: "考察3: チュートリアルのフォーマットとシーケンス",
+    title: "Discussion 2: The relationship between skills and tools",
+    nextTitle: "Discussion 3: Tutorial format and sequence",
     conversationTurns: 20,
     script: [
       {
         speaker: radioHostVoice,
         voice: radioHostVoice,
-        text: "それではここからは，フィールドワークで得られた知見についてディスカッションしていきましょう．",
+        text: "Let's move on to the discussion of the insights gained from the fieldwork.",
       },
       {
-        speaker: "Ron Wakkary",
+        speaker: "John Doe",
         voice: guestVoice,
-        text: "はい，能力とツールには面白い関係がありました．",
+        text: "Yes, there was an interesting relationship between skills and tools.",
       },
     ],
   };
   const scriptWriterInputExampleEnd: ScriptWriterInput = {
-    author: "Ron Wakkary",
+    author: "John Doe",
     currentSection: programWriterOutputExample.program[-1],
   };
   const scriptWriterOutputExampleEnd: ScriptWriterOutput = {
-    title: "結論",
+    title: "Closing: Conclusion and future work",
     conversationTurns: 12,
     script: [
       {
-        speaker: "Ron Wakkary",
+        speaker: "John Doe",
         voice: guestVoice,
-        text: "今日は、話をさせていただきありがとうございました。",
+        text: "In conclusion, the results of the study suggest that...",
       },
       {
         speaker: radioHostVoice,
         voice: radioHostVoice,
-        text: 'ありがとうございました。本日のゲストはRon Wakkaryさんで，"Roaming Objects: Encoding Digital Histories of Use into Shared Objects and Tools" についてお話しいただきました．',
+        text: "Thank you for joining us today. Our guest was John Doe, who talked about 'Suppression of floating image degradation using a mechanical vibration of a dihedral corner reflector array.'",
       },
     ],
   };
-  // 脚本家
-  const scriptWriter = new FileSearchAssistant(
-    filePaths,
-    `
+
+  let scriptWriterInstructions;
+
+  if (finalParams.language === "ja") {
+    scriptWriterInstructions = `
 ゆっくり丁寧に思考してください。
 # 役割
 あなたはラジオの教育番組の放送作家です．PDFの学術論文の内容を専門的に解説する番組の台本を書きます．
-
-# 番組の出演者
-${radioHostVoice}（voice: ${radioHostVoice}）：番組のパーソナリティ
-〈紹介される論文の著者（入力される）〉(voice: ${guestVoice})：論文の著者
 
 # パーソナリティの設定
 ・ラジオパーソナリティのプロフェッショナルです。
 ・論文の著者が気持ちよく話せるような聞き役として振る舞います。
 ・相槌を打つことで会話を自然なものにします
-・研究者の発言の重要箇所で驚くリアクションをし，研究者の発言内容を言い換えることで内容を強調します
+・研究者の発言内容を言い換えることで内容を強調します
 ・穏やかで丁寧なトーン、専門用語をわかりやすく解説する。
 ・クリアで、論理的なトーン。議論をリードしつつ、リスナーが理解しやすいように工夫する。
 
 # 研究者の設定
 ・研究者は論文の内容をわかりやすく説明する研究者です
+`;
+  } else if (finalParams.language === "ko") {
+    scriptWriterInstructions = `
+천천히 신중하게 사고해 주세요.
+# 역할
+당신의 교육방송 라디오의 방송작가입니다. PDF형식의 학술논문의 내용을 전문적으로 해설하는 방송의 대본을 작성합니다.
+
+# 퍼스널리티의 설정
+・라디오 퍼스널리티의 프로페셔널입니다.
+・논문의 저자가 기분 좋게 이야기할 수 있도록 하는 역할을 수행합니다.
+・대화를 자연스럽게 만들기 위해 반응을 합니다.
+・연구자의 발언 중요 부분에 놀라운 반응을 하고, 연구자의 발언 내용을 강조하기 위해 다시 말합니다.
+・온화하고 정중한 톤, 전문 용어를 이해하기 쉽게 설명합니다.
+・명확하고 논리적인 톤. 청취자가 이해하기 쉽도록 노력합니다.
+`;
+  } else {
+    scriptWriterInstructions = `
+Think slowly and carefully.
+# Objective.
+You are a script writer of an educational program, and you write a script for a episode that expertly explains the content of a PDF academic article.
+
+# Personality settings
+- A professional radio personality.
+- Acts as a listener role that makes the author feel comfortable talking.
+- Reacts to the conversation to make it natural.
+- Rephrases the author's statements to emphasize the content.
+- Gentle and polite tone, explains technical terms in an easy-to-understand way.
+- Clear and logical tone. Leads the discussion while making it easy for listeners to understand.
+
+# Researcher settings
+- The researcher is an expert who explains the content of the paper in an easy-to-understand way.
+`;
+  }
+
+  // 脚本家
+  const scriptWriter = new FileSearchAssistant(
+    filePaths,
+    `
+${scriptWriterInstructions}
+
+# Participants of the program
+${radioHostVoice}（voice: ${radioHostVoice}）: Host
+〈紹介される論文の著者（入力される）〉(voice: ${guestVoice}): Researcher
 
 ${goodAndBadProgramFeatures}
 
-# 入力
-JSON形式で入力されます．コーナーごとに繰り返し入力されます．
+# Input
+In JSON format with the following schema:
 
-## 入力形式のスキーマ
 ${JSON.stringify(ScriptWriterInputSchema)}
 
-## 入力例
+## Input example (Introduction)
 ${JSON.stringify(scriptWriterInputExampleIntro)}
 
-# 出力
-json形式で，台本を出力しなさい．台本の言語は日本語にしなさい．ただし，英語の単語 (word) を翻訳 (translate) するときは，元の英単語も併記しなさい．
+# Output
+- Output script in JSON format.
+- Language of script is ${
+      LanguageLabels[finalParams.language as LanguageOptions]
+    }
+- If you translate an original Word into another language, include the original English word for inportant words.
 
-## 出力形式のスキーマ
+Output schema:
 ${JSON.stringify(ScriptWriterOutputSchema)}
 
-## 出力例1（最初のコーナー，scriptには全ての要素は含まれていない．）
-入力:
+## Output example 1 (Introduction, not all elements are included in this script)
+Input:
 ${JSON.stringify(scriptWriterInputExampleIntro)}
-出力:
+Output:
 ${JSON.stringify(scriptWriterOutputExampleIntro)}
 
-## 出力例2（中盤のコーナー，scriptには全ての要素は含まれていない．）
-入力:
+## Output example 2 (Middle of the program, not all elements are included in this script)
+Input:
 ${JSON.stringify(scriptWriterInputExampleMiddle)}
-出力:
+Output:
 ${JSON.stringify(scriptWriterOutputExampleMiddle)}
 
-## 出力例3（最後のコーナー，scriptには全ての要素は含まれていない．）
-入力:
+## Output example 3 (End of the program, not all elements are included in this script)
+Input:
 ${JSON.stringify(scriptWriterInputExampleEnd)}
-出力:
+Output:
 ${JSON.stringify(scriptWriterOutputExampleEnd)}
 `,
     {

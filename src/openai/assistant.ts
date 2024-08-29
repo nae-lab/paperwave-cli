@@ -81,6 +81,10 @@ export class FileSearchAssistant {
     bar.stop(`${uploadedFiles.length} files uploaded`);
     consola
       .withTag(this.assistant?.id ?? this.name ?? "unknown-assistant")
+      .verbose(`Instructions: ${this.instructions}`);
+
+    consola
+      .withTag(this.assistant?.id ?? this.name ?? "unknown-assistant")
       .verbose("Uploaded files: ", uploadedFiles);
 
     await this.createAssistant();
