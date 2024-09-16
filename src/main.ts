@@ -4,6 +4,7 @@ dotenv.config({
 });
 
 import path from "path";
+import fs from "fs";
 import { PromisePool } from "@supercharge/promise-pool";
 import { Type, type Static } from "@sinclair/typebox";
 import appRootPath from "app-root-path";
@@ -652,6 +653,17 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
         }
       }
     });
+
+  // scriptChunksをフォーマットされたJSONとして独立したファイルに保存
+  const scriptWriterOutputPath = path.join(runLogDir, "script.json");
+  const scriptWriterOutput = scriptChunks.map((chunk, index) => ({
+    section: program.program[index].title,
+    script: chunk,
+  }));
+  fs.writeFileSync(
+    scriptWriterOutputPath,
+    JSON.stringify(scriptWriterOutput, null, 2)
+  );
 
   // スクリプトのチャンクを1次元配列に変換して，全体のスクリプトを生成
   const script = scriptChunks.flat();
