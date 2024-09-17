@@ -330,7 +330,7 @@ export class FileSearchAssistant {
         .withTag([this.assistant?.id, thread.id].join(","))
         .debug("Text generation stopped");
 
-      // 全てのメッセージを取得する
+      // Retrieve all messages
       const runResult = await openai.beta.threads.messages.list(thread.id, {
         order: "asc",
       });
@@ -350,9 +350,13 @@ export class FileSearchAssistant {
           const contents = resultMessageContent.content.map(
             (content): ThreadCreateParams.Message => {
               if (content.type === "text") {
+                const stripedContent = this.stripSourceMarker(
+                  content.text.value.toString(),
+                  content.text.annotations
+                );
                 const message: ThreadCreateParams.Message = {
                   role: resultMessageContent.role,
-                  content: content.text.value.toString(),
+                  content: stripedContent,
                 };
                 return message;
               } else {
@@ -391,6 +395,21 @@ export class FileSearchAssistant {
     spinnies?.succeed(spinnieName, { text: `${thread.id}: finished` });
 
     return results;
+  }
+
+  stripSourceMarker(
+    text: string,
+    annotations: OpenAI.Beta.Threads.Messages.Annotation[]
+  ): string {
+    annotations.forEach((annotation) => {
+      const annotationText = annotation.text;
+
+      if (annotationText) {
+        text = text.replace(annotationText, "");
+      }
+    });
+
+    return text;
   }
 
   async parseMessage<T>(at: number): Promise<T | undefined> {
