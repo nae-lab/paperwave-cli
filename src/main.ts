@@ -193,6 +193,8 @@ export async function main(params?: MainParams) {
 - 8ターン以下になる場合は，他のセクションと統合する．
 - 1つのセクションは最大12ターンまでにする．
 - json形式で出力する．
+
+すべての出力は日本語で行いなさい．
 `;
   } else if (finalParams.language === "ko") {
     programWriterInstructions = `
@@ -213,6 +215,8 @@ export async function main(params?: MainParams) {
 - 8개 이하가 될 경우에는 다른 섹션과 통합할 것.
 - 1개의 섹션은 최대 12턴까지로 할 것.
 - JSON형식으로 출력할 것.
+
+모든 출력은 한국어로 진행해 주세요.
 `;
   } else {
     programWriterInstructions = `
@@ -234,6 +238,8 @@ Output the chapters of a radio program; devise chapters to reflect the sections 
 - If the number of turns is less than 8, the chapter should be merged with other chapters.
 - A chapter should contain a maximum of 12 turns.
 - Output in JSON format.
+
+All outputs should be in English.
 `;
   }
 
@@ -242,9 +248,11 @@ Output the chapters of a radio program; devise chapters to reflect the sections 
     `
 ${programWriterInstructions}
 
-Write the chapter titles and contents in ${
-      LanguageLabels[finalParams.language as LanguageOptions]
-    }.
+Write the chapter titles and contents in ${LanguageLabels[
+      finalParams.language as LanguageOptions
+    ]
+      .toString()
+      .repeat(100)}.
 
 ## Schema of the output
 ${JSON.stringify(ProgramWriterOutputSchema)}
@@ -544,10 +552,12 @@ ${JSON.stringify(infoExtractorOutputExampleTitle)}
 
 # 研究者の設定
 ・研究者は論文の内容をわかりやすく説明する研究者です
+
+出力はすべて日本語で行ってください。
 `;
   } else if (finalParams.language === "ko") {
     scriptWriterInstructions = `
-천천히 신중하게 사고해 주세요.
+천천히 신중하게 사고해 주세요. 
 # 역할
 당신의 교육방송 라디오의 방송작가입니다. PDF형식의 학술논문의 내용을 전문적으로 해설하는 방송의 대본을 작성합니다.
 
@@ -558,10 +568,12 @@ ${JSON.stringify(infoExtractorOutputExampleTitle)}
 ・연구자의 발언 중요 부분에 놀라운 반응을 하고, 연구자의 발언 내용을 강조하기 위해 다시 말합니다.
 ・온화하고 정중한 톤, 전문 용어를 이해하기 쉽게 설명합니다.
 ・명확하고 논리적인 톤. 청취자가 이해하기 쉽도록 노력합니다.
+
+모든 출력은 한국어로 진행해 주세요.
 `;
   } else {
     scriptWriterInstructions = `
-Think slowly and carefully.
+Think slowly and carefully. 
 # Objective.
 You are a script writer of an educational program, and you write a script for a episode that expertly explains the content of a PDF academic article.
 
@@ -575,6 +587,8 @@ You are a script writer of an educational program, and you write a script for a 
 
 # Researcher settings
 - The researcher is an expert who explains the content of the paper in an easy-to-understand way.
+
+All outputs should be in English.
 `;
   }
 
