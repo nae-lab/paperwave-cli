@@ -14,7 +14,7 @@ import { FileSearchAssistant } from "./openai/assistant";
 import { argv } from "./args";
 import { consola, runId, runLogDir } from "./logging";
 import { AudioGenerator, TurnSchema, Turn } from "./audio";
-import { VoiceOptions } from "./openai/tts";
+import { VoiceOptions, VoiceOptionsSchema } from "./openai/tts";
 import { LanguageLabels, LanguageOptions } from "./episodes";
 import { merge } from "lodash";
 
@@ -343,8 +343,111 @@ ${JSON.stringify(infoExtractorOutputExampleTitle)}
 
   type ScriptWriterOutput = Static<typeof ScriptWriterOutputSchema>;
 
-  const radioHostVoice: VoiceOptions = "onyx";
-  const guestVoice: VoiceOptions = "fable";
+  let radioHostVoice: VoiceOptions = "onyx";
+  let guestVoice: VoiceOptions = "fable";
+
+  // アシスタントの初期化
+  await programWriter.init();
+
+  consola.info("プログラムの構成を開始します...");
+  const programDuration = finalParams.minute ?? 5;
+  consola.debug(`Program duration: ${programDuration}分`);
+  const programTotalTurns = minutesToTurns(programDuration);
+  await programWriter.runAssistant([
+    {
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text: `${programTotalTurns} turns. 
+          Please make sections to structure the podcast program in ${programTotalTurns} turns. 
+          「${programTotalTurns} ターン」は出演者の発話が${programTotalTurns}回あることを表します．`,
+        },
+      ],
+    },
+  ]);
+  const program = await programWriter.parseMessage<ProgramWriterOutput>(-1);
+
+  if (!program) {
+    throw new Error("Program writer did not return a valid program");
+  }
+
+  consola.info(JSON.stringify(program, null, 2));
+
+  consola.info("情報を抽出します");
+  const extractTasks = [
+    "論文の第1著者をjsonで出力",
+    "論文のタイトルをjsonで出力",
+    'ポッドキャストに出演する論文の著者の音声モデルを，ドキュメントを解釈して決定し，モデル名をjsonで出力してください．音声モデルのリスト ["alloy", "echo", "fable", "nova", "shimmer"]',
+  ];
+
+  const { results: extractionResults } = await PromisePool.withConcurrency(
+    finalParams.assistantConcurrency
+  )
+    .for(extractTasks)
+    .useCorrespondingResults()
+    .process(async (task, index, pool) => {
+      consola.debug(`Extracting information for task: ${task}`);
+      const extractor = new FileSearchAssistant(
+        filePaths,
+        infoExtractorSystemPrompt,
+        {
+          name: `${task}_${runId}`,
+          llmModel: finalParams.llmModel,
+          retryCount: finalParams.retryCount,
+          retryMaxDelay: finalParams.retryMaxDelay,
+        }
+      );
+      await extractor.init();
+
+      await extractor.runAssistant([
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: task,
+            },
+          ],
+        },
+      ]);
+
+      await extractor.deinit();
+
+      const result = await extractor.parseMessage<InfoExtractorOutput>(-1);
+      if (!result) {
+        throw new Error("Info extractor did not return a valid result");
+      }
+
+      return result;
+    });
+
+  const authorText =
+    extractionResults[0] !== PromisePool.notRun &&
+    extractionResults[0] !== PromisePool.failed
+      ? (extractionResults[0] as { result: string }).result
+      : "Unknown author";
+  consola.debug(`Author: ${authorText}`);
+  const paperTitleText =
+    extractionResults[1] !== PromisePool.notRun &&
+    extractionResults[1] !== PromisePool.failed
+      ? (extractionResults[1] as { result: string }).result
+      : "Unknown title";
+  consola.debug(`Paper title: ${paperTitleText}`);
+  // VoiceOptionsに含まれる名前であることを確認してから代入
+  if (
+    extractionResults[2] !== PromisePool.notRun &&
+    extractionResults[2] !== PromisePool.failed &&
+    ["alloy", "echo", "fable", "nova", "shimmer"].includes(
+      (extractionResults[2] as { result: string }).result
+    )
+  ) {
+    guestVoice = (extractionResults[2] as { result: string })
+      .result as VoiceOptions;
+  } else {
+    consola.warn("Got invalid guest speaker model: ", extractionResults[2]);
+  }
+  consola.debug(`Guest voice: ${guestVoice}`);
 
   const scriptWriterInputExampleIntro: ScriptWriterInput = {
     author: "John Doe",
@@ -525,83 +628,7 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
     }
   );
 
-  // ここから処理を開始 ----------------------------------------------------------
-
-  // アシスタントの初期化
-  await Promise.all([programWriter.init(), scriptWriter.init()]);
-
-  consola.info("プログラムの構成を開始します...");
-  const programDuration = finalParams.minute ?? 5;
-  consola.debug(`Program duration: ${programDuration}分`);
-  const programTotalTurns = minutesToTurns(programDuration);
-  await programWriter.runAssistant([
-    {
-      role: "user",
-      content: [
-        {
-          type: "text",
-          text: `${programTotalTurns} turns. 
-          Please make sections to structure the podcast program in ${programTotalTurns} turns. 
-          「${programTotalTurns} ターン」は出演者の発話が${programTotalTurns}回あることを表します．`,
-        },
-      ],
-    },
-  ]);
-  const program = await programWriter.parseMessage<ProgramWriterOutput>(-1);
-
-  if (!program) {
-    throw new Error("Program writer did not return a valid program");
-  }
-
-  consola.info(JSON.stringify(program, null, 2));
-
-  consola.info("情報を抽出します");
-  const extractTasks = [
-    "論文の第1著者をjsonで出力",
-    "論文のタイトルをjsonで出力",
-  ];
-
-  const { results: extractionResults } = await PromisePool.withConcurrency(
-    finalParams.assistantConcurrency
-  )
-    .for(extractTasks)
-    .process(async (task, index, pool) => {
-      const extractor = new FileSearchAssistant(
-        filePaths,
-        infoExtractorSystemPrompt,
-        {
-          name: `${task}_${runId}`,
-          llmModel: finalParams.llmModel,
-          retryCount: finalParams.retryCount,
-          retryMaxDelay: finalParams.retryMaxDelay,
-        }
-      );
-      await extractor.init();
-
-      await extractor.runAssistant([
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: task,
-            },
-          ],
-        },
-      ]);
-
-      await extractor.deinit();
-
-      const result = await extractor.parseMessage<InfoExtractorOutput>(-1);
-      if (!result) {
-        throw new Error("Info extractor did not return a valid result");
-      }
-
-      return result;
-    });
-
-  const authorText = extractionResults[0]?.result;
-  const paperTitleText = extractionResults[1]?.result;
+  await scriptWriter.init();
 
   const outputFileNameText =
     sanitize(paperTitleText ?? "output")
