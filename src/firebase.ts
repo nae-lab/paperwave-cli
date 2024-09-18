@@ -39,14 +39,17 @@ admin.initializeApp({
 export const db = admin.firestore();
 export const bucket = admin.storage().bucket();
 
-export const uploadAudio = async (filePath: string) => {
+export const uploadFile = async (
+  filePath: string,
+  storageFolderPath: string
+) => {
   try {
     // Firebase Storageのバケットにアクセス
     const bucket = getStorage().bucket();
 
     // ファイルをアップロードし、アップロードされたファイルの情報を取得
     const [file] = await bucket.upload(filePath, {
-      destination: `radio/${path.basename(filePath)}`,
+      destination: `${storageFolderPath}/${path.basename(filePath)}`,
     });
 
     // ファイル名を取得して公開URLを生成

@@ -22,6 +22,7 @@ import { AudioGenerator, TurnSchema, Turn } from "./audio";
 import { VoiceOptions, VoiceOptionsSchema } from "./openai/tts";
 import { LanguageLabels, LanguageOptions } from "./episodes";
 import { merge } from "lodash";
+import { uploadFile } from "./firebase";
 
 const AVERAGE_TURN_DURATION_SECONDS = 13.033141; // https://ut-naelab.slack.com/archives/C07ACRCVAPK/p1722651927644929
 
@@ -680,8 +681,19 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
       }
     });
 
+  // Generage Output files' name
+  const timestamp = generateTimestampInLocalTimezone();
+  const outputFileNameText =
+    sanitize(paperTitleText ?? "output")
+      .replace(".", "_")
+      .replace(/\s+/g, "_")
+      .slice(0, 40) + `_${timestamp}`;
+
   // scriptChunksをフォーマットされたJSONとして独立したファイルに保存
-  const scriptWriterOutputPath = path.join(runLogDir, "script.json");
+  const scriptWriterOutputPath = path.join(
+    runLogDir,
+    `script-${outputFileNameText}.json`
+  );
   const scriptWriterOutput = scriptChunks.map((chunk, index) => ({
     section: program.program[index].title,
     script: chunk,
@@ -690,6 +702,7 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
     scriptWriterOutputPath,
     JSON.stringify(scriptWriterOutput, null, 2)
   );
+  uploadFile(scriptWriterOutputPath, "script");
 
   // スクリプトのチャンクを1次元配列に変換して，全体のスクリプトを生成
   const script = scriptChunks.flat();
@@ -700,13 +713,6 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
   await Promise.all([programWriter.deinit(), scriptWriter.deinit()]);
 
   // Generate audio
-  const timestamp = generateTimestampInLocalTimezone();
-  const outputFileNameText =
-    sanitize(paperTitleText ?? "output")
-      .replace(".", "_")
-      .replace(/\s+/g, "_")
-      .slice(0, 40) + `_${timestamp}`;
-
   consola.info("音声ファイルを生成します");
   const audioOutputDir = path.join(runLogDir, "output_audio");
   const bgmPath = path.resolve(appRootPath.path, finalParams.bgm as string);

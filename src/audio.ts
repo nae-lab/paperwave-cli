@@ -6,7 +6,7 @@ import { PromisePool } from "@supercharge/promise-pool";
 import { path as ffmpegPath } from "@ffmpeg-installer/ffmpeg";
 import { Type, type Static } from "@sinclair/typebox";
 import CLIProgress from "cli-progress";
-import { uploadAudio } from "./firebase";
+import { uploadFile } from "./firebase";
 
 import { openai } from "./openai";
 import {
@@ -164,7 +164,7 @@ export class AudioGenerator {
       rootOutputDir,
       `${this.outputFilename}.mp3`
     );
-    const publicUrl = await uploadAudio(mp3Filename);
+    const publicUrl = await uploadFile(mp3Filename, "radio");
     consola.debug(`Copying ${mp3Filename} to ${rootOutputDir}`);
     await fs.copyFile(mp3Filename, rootOutputFilename);
 
