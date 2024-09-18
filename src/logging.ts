@@ -23,29 +23,36 @@ if (!fs.existsSync(logDir)) {
 }
 
 // Create a log directory for each run. Directory name is the current timestamp in local timezone.
-const now = new Date();
-const year = now.getFullYear();
-const month = String(now.getMonth() + 1).padStart(2, "0");
-const day = String(now.getDate()).padStart(2, "0");
-const hours = String(now.getHours()).padStart(2, "0");
-const minutes = String(now.getMinutes()).padStart(2, "0");
-const seconds = String(now.getSeconds()).padStart(2, "0");
-const timezoneOffset = now.getTimezoneOffset();
-const timezoneHours = Math.abs(Math.floor(timezoneOffset / 60))
-  .toString()
-  .padStart(2, "0");
-const timezoneMinutes = (Math.abs(timezoneOffset) % 60)
-  .toString()
-  .padStart(2, "0");
-const timezoneSign = timezoneOffset < 0 ? "+" : "-";
 const hostname = os.hostname();
-const runIdUnsanitized = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}${timezoneSign}${timezoneHours}-${timezoneMinutes}-${hostname}`;
+const timestamp = generateTimestampInLocalTimezone();
+const runIdUnsanitized = `${timestamp}-${hostname}`;
 export const runId = sanitize(runIdUnsanitized)
   .replace(".", "_")
   .replace(/\s/g, "_")
   .slice(0, 120); // export for use in other files to store log files
 export const runLogDir = path.join(logDir, runId); // export for use in other files to store log files
 fs.mkdirSync(runLogDir);
+
+export function generateTimestampInLocalTimezone() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  const hours = String(now.getHours()).padStart(2, "0");
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  const seconds = String(now.getSeconds()).padStart(2, "0");
+  const timezoneOffset = now.getTimezoneOffset();
+  const timezoneHours = Math.abs(Math.floor(timezoneOffset / 60))
+    .toString()
+    .padStart(2, "0");
+  const timezoneMinutes = (Math.abs(timezoneOffset) % 60)
+    .toString()
+    .padStart(2, "0");
+  const timezoneSign = timezoneOffset < 0 ? "+" : "-";
+  const timestampInLocalTimezone = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}${timezoneSign}${timezoneHours}-${timezoneMinutes}`;
+
+  return timestampInLocalTimezone;
+}
 
 async function logCodeSnapshot() {
   // Log current git commit hash

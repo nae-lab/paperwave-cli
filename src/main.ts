@@ -12,7 +12,12 @@ import sanitize from "sanitize-filename";
 
 import { FileSearchAssistant } from "./openai/assistant";
 import { argv } from "./args";
-import { consola, runId, runLogDir } from "./logging";
+import {
+  consola,
+  generateTimestampInLocalTimezone,
+  runId,
+  runLogDir,
+} from "./logging";
 import { AudioGenerator, TurnSchema, Turn } from "./audio";
 import { VoiceOptions, VoiceOptionsSchema } from "./openai/tts";
 import { LanguageLabels, LanguageOptions } from "./episodes";
@@ -630,12 +635,6 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
 
   await scriptWriter.init();
 
-  const outputFileNameText =
-    sanitize(paperTitleText ?? "output")
-      .replace(".", "_")
-      .replace(/\s+/g, "_")
-      .slice(0, 40) + `_${runId}`;
-
   consola.info("脚本を生成します");
   let scriptChunks: Turn[][] = [];
   await PromisePool.withConcurrency(1) // force concurrency 1 to use context
@@ -701,6 +700,13 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
   await Promise.all([programWriter.deinit(), scriptWriter.deinit()]);
 
   // Generate audio
+  const timestamp = generateTimestampInLocalTimezone();
+  const outputFileNameText =
+    sanitize(paperTitleText ?? "output")
+      .replace(".", "_")
+      .replace(/\s+/g, "_")
+      .slice(0, 40) + `_${timestamp}`;
+
   consola.info("音声ファイルを生成します");
   const audioOutputDir = path.join(runLogDir, "output_audio");
   const bgmPath = path.resolve(appRootPath.path, finalParams.bgm as string);
