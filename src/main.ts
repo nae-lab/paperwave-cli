@@ -271,6 +271,7 @@ ${goodAndBadProgramFeatures}
       llmModel: finalParams.llmModel,
       retryCount: finalParams.retryCount,
       retryMaxDelay: finalParams.retryMaxDelay,
+      temperature: 0.1,
     }
   );
 
@@ -410,6 +411,7 @@ ${JSON.stringify(infoExtractorOutputExampleTitle)}
           llmModel: finalParams.llmModel,
           retryCount: finalParams.retryCount,
           retryMaxDelay: finalParams.retryMaxDelay,
+          temperature: 0,
         }
       );
       await extractor.init();
