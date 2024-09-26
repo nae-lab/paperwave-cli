@@ -233,7 +233,7 @@ Output the chapters of a radio program; devise chapters to reflect the sections 
 
 ## Requirements for output
 - The chapter titles should be related with the section titles of the paper.
-- Chapter titles should be output in Japanese.
+- Chapter titles should be output in English.
 - A chapter should contain at least 8 turns.
 - If the number of turns is less than 8, the chapter should be merged with other chapters.
 - A chapter should contain a maximum of 12 turns.
@@ -271,7 +271,7 @@ ${goodAndBadProgramFeatures}
       llmModel: finalParams.llmModel,
       retryCount: finalParams.retryCount,
       retryMaxDelay: finalParams.retryMaxDelay,
-      temperature: 0.1,
+      temperature: 0.3,
     }
   );
 
