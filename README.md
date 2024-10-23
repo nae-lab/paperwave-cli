@@ -8,9 +8,7 @@ You can read the paper [here](https://arxiv.org/abs/2410.15023).
 
 ## Cite this work
 
-```
-Yuchi Yahagi, Rintaro Chujo, Yuga Harada, Changyo Han, Kohei Sugiyama, and Takeshi Naemura. 2024. PaperWave: Listening to Research Papers as Conversational Podcasts Scripted by LLM.  https://doi.org/10.48550/arXiv.2410.15023
-```
+> Yuchi Yahagi, Rintaro Chujo, Yuga Harada, Changyo Han, Kohei Sugiyama, and Takeshi Naemura. 2024. PaperWave: Listening to Research Papers as Conversational Podcasts Scripted by LLM.  https://doi.org/10.48550/arXiv.2410.15023
 
 ```bibtex
 @misc{Yahagi.2024.PaperWaveListeningResearchPapers,
