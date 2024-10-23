@@ -15,6 +15,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  *
  * Description: Main script for podcast generation.
+ * This is the final version of the script used in  https://doi.org/10.48550/arXiv.2410.15023
  */
 
 import dotenv from "dotenv";

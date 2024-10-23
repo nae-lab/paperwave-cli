@@ -1,3 +1,22 @@
+/*
+ * Copyright 2024 Naemura Laboratory, the University of Tokyo
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ *
+ * Description: Podcast audio generation from a script.
+ */
+
 import * as fs from "fs-extra";
 import path from "path";
 import { exec as _exec } from "child_process";
@@ -25,15 +44,15 @@ const exec = util.promisify(_exec);
 export const TurnSchema = Type.Object(
   {
     speaker: Type.String({
-      description: "話者",
+      description: "speaker name",
     }),
     voice: VoiceOptionsSchema,
     text: Type.String({
-      description: "話者の発言",
+      description: "speech text",
     }),
   },
   {
-    description: "台本の中の一つの発言",
+    description: "A turn in the script",
   }
 );
 
@@ -99,7 +118,7 @@ export class AudioGenerator {
     )
       .for(this.script)
       .process(async (turn, index, pool) => {
-        // ソートのためにインデックスは0埋めした4桁数字にする
+        // For sorting, the index is a 4-digit number padded with zeros
         const indexPadded = index.toString().padStart(4, "0");
         const speechFilename = path.join(
           this.workDir,
