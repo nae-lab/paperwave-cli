@@ -14,7 +14,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "MIT",
+  "license": "LGPL-3.0",
   "packageManager": "pnpm@9.11.0",
   "devDependencies": {
     "@tsconfig/node-lts-strictest-esm": "^18.12.1",
