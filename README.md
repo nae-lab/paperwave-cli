@@ -6,6 +6,8 @@ This repository contains the source code for the PaperWave CLI.
 PaperWave was developed as research project.
 You can read the paper [here](https://arxiv.org/abs/2410.15023).
 
+Webapp is available at [PaperWave Web](https://github.com/nae-lab/paperwave-web).
+
 ## Cite this work
 
 > Yuchi Yahagi, Rintaro Chujo, Yuga Harada, Changyo Han, Kohei Sugiyama, and Takeshi Naemura. 2024. PaperWave: Listening to Research Papers as Conversational Podcasts Scripted by LLM.  https://doi.org/10.48550/arXiv.2410.15023
