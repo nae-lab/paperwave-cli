@@ -269,9 +269,7 @@ ${programWriterInstructions}
 
 Write the chapter titles and contents in ${LanguageLabels[
       finalParams.language as LanguageOptions
-    ]
-      .toString()
-      .repeat(100)}.
+    ].toString()}.
 
 ## Schema of the output
 ${JSON.stringify(ProgramWriterOutputSchema)}
