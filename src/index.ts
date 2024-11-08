@@ -27,6 +27,7 @@ import { main } from "./main"; // main.tsからインポート
 import { db, bucket } from "./firebase";
 import { consola, getLogs } from "./logging";
 import { Episode, RecordingOptions, episodeDataConverter } from "./episodes";
+import { backOff } from "exponential-backoff";
 
 console.log("EPISODES_COLLECTION_ID:", process.env.EPISODES_COLLECTION_ID);
 const COLLECTION_ID = process.env.EPISODES_COLLECTION_ID || "episodes";
@@ -80,7 +81,22 @@ async function processRecordingOptions(options: any) {
       bgm: downloadedBGM,
     };
     console.log(updatedParams);
-    const processedURL = await main(updatedParams);
+    const processedURL = await backOff(
+      async () => {
+        return await main(updatedParams);
+      },
+      {
+        numOfAttempts: updatedParams.retryCount,
+        maxDelay: updatedParams.retryMaxDelay,
+        retry: (e, attempt) => {
+          consola.warn(
+            `Failed to process recording after ${attempt} attempts: ${e}`
+          );
+
+          return true;
+        },
+      }
+    );
     return processedURL;
   } catch (error) {
     console.error(error);

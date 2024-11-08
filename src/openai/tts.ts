@@ -71,17 +71,17 @@ export async function synthesizeSpeech(
       numOfAttempts: retryCount,
       maxDelay: retryMaxDelay,
       retry: (e, attempt) => {
-        consola.debug(
+        consola.warn(
           `Failed to synthesize speech after ${attempt} attempts: ${e}`
         );
 
-        if (e.type === "requests" && (e.status === 429 || e.status >= 500)) {
-          consola.debug("Retrying due to HTTP error", e);
-          return true;
-        }
+        // if (e.type === "requests" && (e.status === 429 || e.status >= 500)) {
+        //   consola.debug("Retrying due to HTTP error", e);
+        //   return true;
+        // }
 
-        consola.debug("Not retrying: ", e);
-        return false;
+        // consola.debug("Not retrying: ", e);
+        return true;
       },
     }
   );

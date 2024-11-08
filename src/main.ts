@@ -383,7 +383,7 @@ ${JSON.stringify(infoExtractorOutputExampleTitle)}
   // アシスタントの初期化
   await programWriter.init();
 
-  consola.info("プログラムの構成を開始します...");
+  consola.info("Generating chapter structure");
   const programDuration = finalParams.minute ?? 5;
   consola.debug(`Program duration: ${programDuration}分`);
   const programTotalTurns = minutesToTurns(programDuration);
@@ -408,7 +408,7 @@ ${JSON.stringify(infoExtractorOutputExampleTitle)}
 
   consola.info(JSON.stringify(program, null, 2));
 
-  consola.info("情報を抽出します");
+  consola.info("Extracting information");
   const extractTasks = [
     "論文の第1著者をjsonで出力",
     "論文のタイトルをjsonで出力",
@@ -671,7 +671,7 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
 
   await scriptWriter.init();
 
-  consola.info("脚本を生成します");
+  consola.info("Generating script");
   let scriptChunks: Turn[][] = [];
   await PromisePool.withConcurrency(1) // force concurrency 1 to use context
     .for(program.program)
@@ -744,11 +744,11 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
 
   consola.verbose("All script of this program...", script);
 
-  consola.info("アシスタントを削除します");
+  consola.info("Removing assistant");
   await Promise.all([programWriter.deinit(), scriptWriter.deinit()]);
 
   // Generate audio
-  consola.info("音声ファイルを生成します");
+  consola.info("Generating audio files");
   const audioOutputDir = path.join(runLogDir, "output_audio");
   const bgmPath = path.resolve(appRootPath.path, finalParams.bgm as string);
   let bgmVolume;
