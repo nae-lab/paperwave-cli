@@ -58,9 +58,14 @@ export async function synthesizeSpeech(
 
   const retryCount = (await argv).retryCount as number;
   const retryMaxDelay = (await argv).retryMaxDelay as number;
-  const response = await backOff(
+  await backOff(
     async () => {
-      return await openai.audio.speech.create(requestOptions);
+      const response = await openai.audio.speech.create(requestOptions);
+
+      consola.verbose("Received TTS response", response);
+
+      const audioBuffer = Buffer.from(await response.arrayBuffer());
+      await fs.writeFile(filename, audioBuffer);
     },
     {
       numOfAttempts: retryCount,
@@ -81,8 +86,4 @@ export async function synthesizeSpeech(
     }
   );
 
-  consola.verbose("Received TTS response", response);
-
-  const audioBuffer = Buffer.from(await response.arrayBuffer());
-  await fs.writeFile(filename, audioBuffer);
 }
