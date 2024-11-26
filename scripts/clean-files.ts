@@ -31,25 +31,15 @@ async function cleanFiles() {
     purpose: "assistants",
   });
 
-  for (const file of files.data) {
-    const fileInfo = await openai.files.retrieve(file.id);
+   const { errors } = await PromisePool.withConcurrency(100)
+     .for(files.data)
+     .process(async (file) => {
+       consola.info(`Deleting file ${file.id}: ${file.filename}`);
 
-    consola.info(`Deleting file ${file.id} ${fileInfo.filename}`);
-
-    const responseFileDel = await openai.files.del(file.id);
-    consola.debug(`File ${file.id}: ${fileInfo.filename} deleted`);
-    consola.verbose(responseFileDel);
-  }
-
-  const { errors } = await PromisePool.withConcurrency(30)
-    .for(files.data)
-    .process(async (file) => {
-      consola.info(`Deleting file ${file.id}: ${file.filename}`);
-
-      const response = await openai.files.del(file.id);
-      consola.debug(`File ${file.id}: ${file.filename} deleted`);
-      consola.verbose(response);
-    });
+       const response = await openai.files.del(file.id);
+       consola.debug(`File ${file.id}: ${file.filename} deleted`);
+       consola.verbose(response);
+     });
 
   errors.forEach((err) => {
     consola.error(err);
