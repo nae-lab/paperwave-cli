@@ -115,12 +115,13 @@ export async function main(params?: MainParams) {
     totalTurns: 100,
     program: [
       {
-        title: "Introduction and Overview of the Program",
-        conversationTurns: 12,
+        title:
+          "Introduction and Overview of the Program: Mobile reading and engagement with knowledge",
+        conversationTurns: 10,
         contents: [
-          "Introduction to the topic.",
-          "Summary of the research paper.",
+          "Summary of PaperWave and aim of the research.",
           "Overview of what will be covered in the episode.",
+          "The spread of audio content and its impact on learning",
         ],
       },
       {
@@ -128,23 +129,23 @@ export async function main(params?: MainParams) {
           "The research perspective of 'constructionism' and the importance of this research",
         conversationTurns: 16,
         contents: [
-          "Historical context and background of the study.",
-          "Explanation of key concepts: new venture teams, task re-allocation, and conflict.",
-          "Explanation of the importance of the study.",
+          "Historical context of the teoretical background.",
+          "Explanation of key concepts: 'personally meaningful' and 'object to think with.'",
+          "How these concept related with this study?",
         ],
       },
       {
         title: "Main Related Work",
         conversationTurns: 14,
         contents: [
-          "An overview of the field of learning science, where related research has been discussed.",
+          "An overview of the field of maker education.",
           "Explanation of the limitations of previous studies.",
           "Explanation of how this study builds upon previous research.",
         ],
       },
       {
         title: "Methods",
-        conversationTurns: 12,
+        conversationTurns: 14,
         contents: [
           "Explanation of the qualitative research methods used in this study",
           "Details of data collection methods, including interviews and observations",
@@ -162,30 +163,29 @@ export async function main(params?: MainParams) {
         ],
       },
       {
-        title: "The emergence of task reassignment conflicts",
-        conversationTurns: 10,
-        contents: [
-          "How task re-allocation issues emerge.",
-          "Examples and case studies from the three teams analyzed.",
-          "Discussion on developmental milestones and task re-allocation oppositions.",
-        ],
-      },
-      {
         title: "Discussion: Conflict development and management",
         conversationTurns: 12,
         contents: [
           "How conflicts unfold in different teams.",
           "Analysis of negative affect expectations and their impact.",
           "Case-specific reactions and adjustments made by the teams.",
+          "Implications of the study on the field of maker education.",
         ],
       },
       {
-        title: "Conclusions and significance of the research",
+        title: "Conclusions of the research",
         conversationTurns: 12,
         contents: [
-          "Summary of the study’s findings and its contributions to existing literature.",
-          "Practical implications for new venture teams and conflict management.",
+          "Summary of the study’s findings.",
           "Limitations of the study and suggestions for future research.",
+        ],
+      },
+      {
+        title: "Questions from the audience",
+        conversationTurns: 10,
+        contents: [
+          "Questions from the audience.",
+          "Answers from the researcher.",
         ],
       },
     ],

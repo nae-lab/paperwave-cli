@@ -44,6 +44,7 @@ export const argv = yargs(hideBin(process.argv))
       default: "gpt-4o",
       choices: [
         "gpt-4o",
+        "gpt-4o-2024-05-13",
         "gpt-4o-2024-08-06",
         "gpt-4o-mini",
         "gpt-4-turbo",
