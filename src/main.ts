@@ -535,7 +535,7 @@ Alloyは、やや低めの落ち着いた声を持つ、知的な印象を与え
 その他: 声にわずかな息漏れがあり、それが柔らかさや自然さを加えています。機械的な音声合成とは異なり、人間らしい温かみを感じさせます。
 `;
   const voiceSelector = new ChatCompletion(voiceSelectorPrompt, {
-    temperature: 0.3,
+    temperature: 0,
     model: finalParams.llmModel,
     response_format: zodResponseFormat(
       voiceSelectorResponseFormat,
