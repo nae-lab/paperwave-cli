@@ -55,7 +55,7 @@ importers:
         version: 2.7.0
       openai:
         specifier: ^4.55.0
-        version: 4.55.0
+        version: 4.55.0(zod@3.24.1)
       sanitize-filename:
         specifier: ^1.6.3
         version: 1.6.3
@@ -68,6 +68,9 @@ importers:
       yargs:
         specifier: ^17.7.2
         version: 17.7.2
+      zod:
+        specifier: ^3.24.1
+        version: 3.24.1
     devDependencies:
       '@tsconfig/node-lts-strictest-esm':
         specifier: ^18.12.1
@@ -1493,6 +1496,9 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
+  zod@3.24.1:
+    resolution: {integrity: sha512-muH7gBL9sI1nciMZV67X5fTKKBLtwpZ5VBp1vsOQzj1MhrBZ4wlVCm3gedKZWLp0Oyel8sIGfeiz54Su+OVT+A==}
+
 snapshots:
 
   '@cspotcode/source-map-support@0.8.1':
@@ -2597,7 +2603,7 @@ snapshots:
     dependencies:
       mimic-fn: 2.1.0
 
-  openai@4.55.0:
+  openai@4.55.0(zod@3.24.1):
     dependencies:
       '@types/node': 18.19.43
       '@types/node-fetch': 2.6.11
@@ -2606,6 +2612,8 @@ snapshots:
       form-data-encoder: 1.7.2
       formdata-node: 4.4.1
       node-fetch: 2.7.0
+    optionalDependencies:
+      zod: 3.24.1
     transitivePeerDependencies:
       - encoding
 
@@ -3036,3 +3044,5 @@ snapshots:
 
   yocto-queue@0.1.0:
     optional: true
+
+  zod@3.24.1: {}
