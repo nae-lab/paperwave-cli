@@ -144,3 +144,4 @@ downloads/**
 # Ignore .DS_Store
 .DS_Store
 scripts/create-gce-with-container.sh
+scripts/batch.sh
