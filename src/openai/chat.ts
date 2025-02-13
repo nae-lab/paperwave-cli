@@ -21,7 +21,7 @@ import OpenAI from "openai";
 import { ChatCompletionCreateParamsStreaming } from "openai/resources/index";
 import { Stream } from "openai/streaming";
 
-import { openai } from "../openai";
+import { azureOpenaiGpt4o } from "../openai";
 import { consola, runId } from "../logging";
 import { spinnies } from "../spinnies";
 import { argv } from "../args";
@@ -75,7 +75,7 @@ export class ChatCompletion {
       content: message,
     });
 
-    const stream = await openai.chat.completions.create({
+    const stream = await azureOpenaiGpt4o.chat.completions.create({
       messages: this.messages,
       model: this.options?.model ?? (await argv).llmModel,
       stream: true,
@@ -100,12 +100,12 @@ export class ChatCompletion {
         });
       }
 
-      result.content += chunk.choices[0].delta.content ?? "";
+      result.content += chunk.choices?.[0]?.delta?.content ?? "";
 
-      if (chunk.choices[0].finish_reason === "content_filter") {
+      if (chunk.choices?.[0]?.finish_reason === "content_filter") {
         consola.warn("Text generation stopped due to content filter");
         break;
-      } else if (chunk.choices[0].finish_reason === "length") {
+      } else if (chunk.choices?.[0]?.finish_reason === "length") {
         consola.warn("Text generation stopped due to length");
         break;
       }

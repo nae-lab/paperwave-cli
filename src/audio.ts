@@ -27,7 +27,7 @@ import { Type, type Static } from "@sinclair/typebox";
 import CLIProgress from "cli-progress";
 import { uploadFile } from "./firebase";
 
-import { openai } from "./openai";
+import { azureOpenaiGpt4o } from "./openai";
 import {
   synthesizeSpeech,
   VoiceOptions,

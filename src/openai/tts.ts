@@ -21,7 +21,7 @@ import * as fs from "fs-extra";
 import { Type, type Static } from "@sinclair/typebox";
 import { backOff } from "exponential-backoff";
 
-import { openai } from "../openai";
+import { azureTTS } from "../openai";
 import { consola } from "../logging";
 import { argv } from "../args";
 import { SpeechCreateParams } from "openai/resources/audio/speech";
@@ -60,7 +60,7 @@ export async function synthesizeSpeech(
   const retryMaxDelay = (await argv).retryMaxDelay as number;
   await backOff(
     async () => {
-      const response = await openai.audio.speech.create(requestOptions);
+      const response = await azureTTS.audio.speech.create(requestOptions);
 
       consola.verbose("Received TTS response", response);
 
@@ -85,5 +85,4 @@ export async function synthesizeSpeech(
       },
     }
   );
-
 }

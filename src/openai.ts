@@ -17,7 +17,21 @@
  * Description: OpenAI API configuration
  */
 
+import { AzureOpenAI } from "openai";
 import OpenAI from "openai";
+
+export const azureOpenaiGpt4o = new AzureOpenAI({
+  apiVersion: process.env.AZURE_OPENAI_API_VERSION,
+  apiKey: process.env.AZURE_OPENAI_API_KEY,
+  endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+});
+
+export const azureTTS = new AzureOpenAI({
+  apiVersion: process.env.AZURE_OPENAI_TTS_API_VERSION,
+  apiKey: process.env.AZURE_OPENAI_TTS_API_KEY,
+  endpoint: process.env.AZURE_OPENAI_TTS_ENDPOINT,
+  deployment: process.env.AZURE_OPENAI_TTS_DEPLOYMENT_NAME,
+});
 
 export const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,

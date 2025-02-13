@@ -30,7 +30,7 @@ import {
 import CLIProgress from "cli-progress";
 import { randomUUID } from "crypto";
 
-import { openai } from "../openai";
+import { azureOpenaiGpt4o } from "../openai";
 import { parseJSON, extractJSONString } from "../json";
 import { consola, runId } from "../logging";
 import { spinnies } from "../spinnies";
@@ -130,7 +130,7 @@ export class FileSearchAssistant {
     const retryMaxDelay = (await argv).retryMaxDelay as number;
     const file = await backOff(
       async () => {
-        return await openai.files
+        return await azureOpenaiGpt4o.files
           .create({
             file: fs.createReadStream(absolutePath),
             purpose: "assistants",
@@ -167,7 +167,7 @@ export class FileSearchAssistant {
   private async deleteFiles() {
     const deletePromises = this.uploadedFiles.map(async (file) => {
       const fileId = file.id;
-      await openai.files.del(fileId).then((result) => {
+      await azureOpenaiGpt4o.files.del(fileId).then((result) => {
         consola.debug(`File ${fileId} deleted`);
       });
     });
@@ -180,7 +180,7 @@ export class FileSearchAssistant {
       consola.warn("No files uploaded");
     }
 
-    const vectorStore = await openai.beta.vectorStores.create({
+    const vectorStore = await azureOpenaiGpt4o.beta.vectorStores.create({
       name: this.name,
       file_ids: this.uploadedFiles.map((file) => file.id),
     });
@@ -194,7 +194,7 @@ export class FileSearchAssistant {
     const retryMaxDelay = (await argv).retryMaxDelay as number;
     const assistant = await backOff(
       async () => {
-        return await openai.beta.assistants.create({
+        return await azureOpenaiGpt4o.beta.assistants.create({
           instructions: this.instructions,
           name: this.name,
           tools: [
@@ -241,7 +241,7 @@ export class FileSearchAssistant {
     }
 
     const assistant_id = this.assistant.id;
-    await openai.beta.assistants.del(assistant_id).then((result) => {
+    await azureOpenaiGpt4o.beta.assistants.del(assistant_id).then((result) => {
       consola.withTag(assistant_id).debug(`Assistant ${assistant_id} deleted`);
       this.assistant = undefined;
     });
@@ -252,7 +252,7 @@ export class FileSearchAssistant {
       throw new Error("Vector store is not initialized");
     }
 
-    let vectorStore = await openai.beta.vectorStores.retrieve(
+    let vectorStore = await azureOpenaiGpt4o.beta.vectorStores.retrieve(
       this.vectorStore.id
     );
 
@@ -263,7 +263,7 @@ export class FileSearchAssistant {
     bar.start(vectorStore.file_counts.total, 0);
     while (vectorStore.file_counts.in_progress > 0) {
       await new Promise((resolve) => setTimeout(resolve, 100));
-      vectorStore = await openai.beta.vectorStores.retrieve(
+      vectorStore = await azureOpenaiGpt4o.beta.vectorStores.retrieve(
         this.vectorStore.id
       );
       bar.update(
@@ -281,13 +281,15 @@ export class FileSearchAssistant {
     }
 
     const vectorStore_id = this.vectorStore.id;
-    await openai.beta.vectorStores.del(vectorStore_id).then((result) => {
-      consola
-        .withTag(vectorStore_id)
-        .debug(`Vector store ${vectorStore_id} deleted`);
-      consola.withTag(vectorStore_id).verbose("Vector store delete", result);
-      this.vectorStore = undefined;
-    });
+    await azureOpenaiGpt4o.beta.vectorStores
+      .del(vectorStore_id)
+      .then((result) => {
+        consola
+          .withTag(vectorStore_id)
+          .debug(`Vector store ${vectorStore_id} deleted`);
+        consola.withTag(vectorStore_id).verbose("Vector store delete", result);
+        this.vectorStore = undefined;
+      });
   }
 
   async runAssistant(
@@ -307,7 +309,7 @@ export class FileSearchAssistant {
       "Creating thread with messages: ",
       JSON.stringify(params, null, 2)
     );
-    const thread = await openai.beta.threads.create({
+    const thread = await azureOpenaiGpt4o.beta.threads.create({
       messages: params.messages,
     });
     consola
@@ -350,9 +352,12 @@ export class FileSearchAssistant {
         .debug("Text generation stopped");
 
       // Retrieve all messages
-      const runResult = await openai.beta.threads.messages.list(thread.id, {
-        order: "asc",
-      });
+      const runResult = await azureOpenaiGpt4o.beta.threads.messages.list(
+        thread.id,
+        {
+          order: "asc",
+        }
+      );
       consola
         .withTag([this.assistant?.id, thread.id].join(","))
         .debug(`Retrieved all messages from thread ${thread.id}`);
@@ -460,7 +465,7 @@ export class FileSearchAssistant {
     spinnieName?: string
   ): Promise<AssistantStream> {
     return new Promise((resolve, reject) => {
-      const stream = openai.beta.threads.runs.stream(threadId, body);
+      const stream = azureOpenaiGpt4o.beta.threads.runs.stream(threadId, body);
 
       stream.on("textCreated", (text) => {
         // consola.withTag(threadId).verbose("assistant > ");
