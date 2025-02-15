@@ -1,5 +1,5 @@
 /*
- * Copyright 2024 Naemura Laboratory, the University of Tokyo
+ * Copyright 2025 Naemura Laboratory, the University of Tokyo
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
