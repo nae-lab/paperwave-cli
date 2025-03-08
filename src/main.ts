@@ -800,6 +800,10 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
 
   // Generage Output files' name
   const timestamp = generateTimestampInLocalTimezone();
+  const workingDir = path.join(runLogDir, "output-" + timestamp);
+  if (!fs.existsSync(workingDir)) {
+    fs.mkdirSync(workingDir, { recursive: true });
+  }
   const outputFileNameTextAuto =
     sanitize(paperTitleText ?? "output")
       .replace(".", "_")
@@ -809,9 +813,10 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
 
   // scriptChunksをフォーマットされたJSONとして独立したファイルに保存
   const scriptWriterOutputPath = path.join(
-    runLogDir,
+    workingDir,
     `script-${outputFileNameText}.json`
   );
+
   const scriptWriterOutput = scriptChunks.map((chunk, index) => ({
     section: program.program[index].title,
     script: chunk,
@@ -841,7 +846,7 @@ ${JSON.stringify(scriptWriterOutputExampleEnd)}
 
   // Generate audio
   consola.info("Generating audio files");
-  const audioOutputDir = path.join(runLogDir, "output_audio");
+  const audioOutputDir = path.join(workingDir, "output_audio");
   const bgmPath = path.resolve(appRootPath.path, finalParams.bgm as string);
   let bgmVolume;
   try {
