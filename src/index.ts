@@ -68,11 +68,50 @@ async function processRecordingOptions(options: any) {
   try {
     const params: RecordingOptions = options;
 
-    // papersのURLからファイルをダウンロードしてローカルパスに変換
-    const downloadedPaper = await Promise.all(
-      params.paperUrls.map((url: string) => downloadFile(url))
+    // Download files with retry logic
+    const downloadedPaper = await backOff(
+      async () => {
+        return await Promise.all(
+          params.paperUrls.map((url: string) => downloadFile(url))
+        );
+      },
+      {
+        numOfAttempts: params.retryCount,
+        maxDelay: params.retryMaxDelay,
+        retry: (e, attempt) => {
+          consola.warn(
+            `Failed to download papers after ${attempt} attempts: ${e}`
+          );
+          // Only retry on network errors or Firebase Storage errors
+          return (
+            e.code === "ECONNRESET" ||
+            e.code === "ETIMEDOUT" ||
+            e.code?.startsWith("storage/")
+          );
+        },
+      }
     );
-    const downloadedBGM = await downloadFile(params.bgm);
+
+    const downloadedBGM = await backOff(
+      async () => {
+        return await downloadFile(params.bgm);
+      },
+      {
+        numOfAttempts: params.retryCount,
+        maxDelay: params.retryMaxDelay,
+        retry: (e, attempt) => {
+          consola.warn(
+            `Failed to download BGM after ${attempt} attempts: ${e}`
+          );
+          // Only retry on network errors or Firebase Storage errors
+          return (
+            e.code === "ECONNRESET" ||
+            e.code === "ETIMEDOUT" ||
+            e.code?.startsWith("storage/")
+          );
+        },
+      }
+    );
 
     // ダウンロードしたファイルパスをmain関数に渡す
     const updatedParams = {
@@ -81,6 +120,7 @@ async function processRecordingOptions(options: any) {
       bgm: downloadedBGM,
     };
     console.log(updatedParams);
+
     const processedURL = await backOff(
       async () => {
         return await main(updatedParams);
@@ -92,14 +132,24 @@ async function processRecordingOptions(options: any) {
           consola.warn(
             `Failed to process recording after ${attempt} attempts: ${e}`
           );
-
-          return true;
+          // Only retry on specific errors that might be temporary
+          return (
+            e.code === "ECONNRESET" ||
+            e.code === "ETIMEDOUT" ||
+            e.message?.includes("socket hang up")
+          );
         },
       }
     );
+
+    if (!processedURL) {
+      throw new Error("Processing completed but no URL was returned");
+    }
+
     return processedURL;
   } catch (error) {
-    console.error(error);
+    consola.error("Fatal error in processRecordingOptions:", error);
+    throw error; // Re-throw the error to be handled by handleNewProgram
   }
 }
 
