@@ -46,7 +46,7 @@ import { merge } from "lodash";
 import { uploadFile } from "./firebase";
 import { ChatCompletion } from "./openai/chat";
 
-const AVERAGE_TURN_DURATION_SECONDS = 13.033141; // https://ut-naelab.slack.com/archives/C07ACRCVAPK/p1722651927644929
+const AVERAGE_TURN_DURATION_SECONDS = 16;
 
 function minutesToTurns(minute: number): number {
   return Math.floor((minute * 60) / AVERAGE_TURN_DURATION_SECONDS);

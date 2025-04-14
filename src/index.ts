@@ -22,6 +22,7 @@ import process from "process";
 import appRootPath from "app-root-path";
 import * as admin from "firebase-admin";
 import * as fs from "fs";
+import { PromisePool } from "@supercharge/promise-pool";
 
 import { main } from "./main"; // main.tsからインポート
 import { db, bucket } from "./firebase";
@@ -192,26 +193,90 @@ const handleNewProgram = async (
   }
 };
 
+// グローバルなタスクキューを管理するためのクラス
+class TaskQueue {
+  private static instance: TaskQueue;
+  private tasks: Array<{
+    task: () => Promise<void>;
+    resolve: () => void;
+    reject: (error: unknown) => void;
+  }> = [];
+
+  private constructor() {
+    this.startProcessing();
+  }
+
+  public static getInstance(): TaskQueue {
+    if (!TaskQueue.instance) {
+      TaskQueue.instance = new TaskQueue();
+    }
+    return TaskQueue.instance;
+  }
+
+  public async addTask(task: () => Promise<void>): Promise<void> {
+    consola.debug("addTask");
+    consola.verbose(task);
+    return new Promise((resolve, reject) => {
+      this.tasks.push({ task, resolve, reject });
+    });
+  }
+
+  private async startProcessing(): Promise<void> {
+    while (true) {
+      // 新しいタスクを待機
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      if (this.tasks.length > 0) {
+        const currentTasks = this.tasks.splice(0, this.tasks.length);
+
+        try {
+          const { results, errors } = await PromisePool.withConcurrency(1)
+            .for(currentTasks)
+            .process(async (item) => {
+              try {
+                await item.task();
+                item.resolve();
+              } catch (error) {
+                item.reject(error);
+                throw error; // エラーをプールに伝播させる
+              }
+            });
+
+          // エラーのログ出力
+          if (errors.length > 0) {
+            console.error(`${errors.length} tasks failed:`, errors);
+          }
+        } catch (error) {
+          console.error("Error in promise pool:", error);
+        }
+      }
+    }
+  }
+}
+
+// グローバルなタスクキューのインスタンスを取得
+const taskQueue = TaskQueue.getInstance();
+
 // episodeコレクションの監視
 console.log("Listening for new episodes on", COLLECTION_ID);
 db.collection(COLLECTION_ID).onSnapshot((snapshot) => {
-  const promises = snapshot.docChanges().map((change) => {
-    if (change.type === "added") {
-      if (
-        change.doc.data().isRecordingCompleted === false &&
-        change.doc.data().isRecordingFailed === false
-      ) {
-        return handleNewProgram(change.doc);
-      }
-    }
-  });
+  const changes = snapshot
+    .docChanges()
+    .filter(
+      (change) =>
+        change.type === "added" &&
+        !change.doc.data().isRecordingCompleted &&
+        !change.doc.data().isRecordingFailed
+    );
 
-  // 全ての追加ドキュメントを並列に処理
-  Promise.all(promises)
-    .then(() => {
-      console.log("All new episodes processed");
-    })
-    .catch((error) => {
-      console.error("Error processing episodes:", error);
-    });
+  // 各変更をタスクキューに追加
+  changes.forEach((change) => {
+    taskQueue
+      .addTask(async () => {
+        await handleNewProgram(change.doc);
+      })
+      .catch((error) => {
+        console.error("Error processing episode:", error);
+      });
+  });
 });
