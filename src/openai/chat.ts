@@ -21,7 +21,7 @@ import OpenAI from "openai";
 import { ChatCompletionCreateParamsStreaming } from "openai/resources/index";
 import { Stream } from "openai/streaming";
 
-import { azureOpenaiGpt4o } from "../openai";
+import { azureOpenai } from "../openai";
 import { consola, runId } from "../logging";
 import { spinnies } from "../spinnies";
 import { argv } from "../args";
@@ -75,7 +75,7 @@ export class ChatCompletion {
       content: message,
     });
 
-    const stream = await azureOpenaiGpt4o.chat.completions.create({
+    const stream = await azureOpenai.chat.completions.create({
       messages: this.messages,
       model: this.options?.model ?? (await argv).llmModel,
       stream: true,

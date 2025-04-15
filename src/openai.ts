@@ -20,7 +20,7 @@
 import { AzureOpenAI } from "openai";
 import OpenAI from "openai";
 
-export const azureOpenaiGpt4o = new AzureOpenAI({
+export const azureOpenai = new AzureOpenAI({
   apiVersion: process.env.AZURE_OPENAI_API_VERSION,
   apiKey: process.env.AZURE_OPENAI_API_KEY,
   endpoint: process.env.AZURE_OPENAI_ENDPOINT,
