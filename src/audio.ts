@@ -166,10 +166,27 @@ export class AudioGenerator {
       await fs.copyFile(concatFilename, outputWavFilePath);
     }
 
-    // Convert to MP3
+    // Convert to MP3 with high quality settings
     const mp3Filename = path.join(this.distDir, `${this.outputFilename}.mp3`);
     consola.debug(`Converting from WAV to MP3: ${mp3Filename}`);
-    await exec(`${ffmpegPath} -i "${outputWavFilePath}" -y "${mp3Filename}"`);
+
+    // Use high quality MP3 encoding with noise reduction and audio enhancement
+    const mp3Command = [
+      ffmpegPath,
+      `-i "${outputWavFilePath}"`,
+      // Audio filters for quality improvement
+      `-af "highpass=f=80,lowpass=f=8000,volume=0.8,compand=0.3|0.3:1|1:-90/-60|-60/-40|-40/-30|-20/-20:6:0:-90:0.2"`,
+      // High quality MP3 encoding
+      `-codec:a libmp3lame`,
+      `-b:a 320k`, // High bitrate for best quality
+      `-q:a 0`, // Highest quality setting
+      `-ar 44100`, // Standard sample rate
+      `-ac 2`, // Stereo output
+      `-y "${mp3Filename}"`,
+    ].join(" ");
+
+    consola.debug(`Running MP3 conversion command: ${mp3Command}`);
+    await exec(mp3Command);
 
     // Copy to output directory in appRootDir
     const rootOutputDir = path.join(appRootPath.path, "out");

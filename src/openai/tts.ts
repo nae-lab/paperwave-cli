@@ -28,12 +28,17 @@ import { SpeechCreateParams } from "openai/resources/audio/speech";
 
 export const VoiceOptionsSchema = Type.Union(
   [
-    Type.Literal("alloy"),
-    Type.Literal("echo"),
-    Type.Literal("fable"),
-    Type.Literal("onyx"),
-    Type.Literal("nova"),
-    Type.Literal("shimmer"),
+    // Type.Literal("alloy"),
+    // Type.Literal("echo"),
+    // Type.Literal("fable"),
+    // Type.Literal("onyx"),
+    // // Type.Literal("nova"),
+    // Type.Literal("shimmer"),
+    Type.Literal("sage"),
+    Type.Literal("ash"),
+    // Type.Literal("coral"),
+    Type.Literal("ballad"),
+    Type.Literal("verse"),
   ],
   {
     description: "The voice to use for the TTS",
@@ -53,6 +58,18 @@ export async function synthesizeSpeech(
     input: text,
     voice: voiceName,
     response_format: "wav",
+    instructions: `
+Voice: Soft, mid-low pitch, natural, unpolished, gets focused on topic.
+
+Tone: Explanatory, flat intonation, not too excited.
+
+Rhythm: Fast, non-linear pacing.
+
+Pronunciation: Slightly muffled, self-corrects by repeating word-starts ("re-, research"), irregular breathing.
+
+Features: Links fillers together ("so, like, uh..."), thoughtful pauses, emphasis by word duration, not pitch.
+    `,
+    speed: 2,
   };
   consola.verbose("Requesting TTS from OpenAI", requestOptions);
 

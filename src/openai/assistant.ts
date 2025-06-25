@@ -54,7 +54,6 @@ export class FileSearchAssistant {
   readonly name: string;
   filePaths: string[] = [];
   uploadedFiles: OpenAI.Files.FileObject[] = [];
-  vectorStore?: OpenAI.Beta.VectorStores.VectorStore;
   threadContext: ThreadCreateParams.Message[] = [];
   instructions: string;
   temperature?: number;
@@ -111,7 +110,6 @@ export class FileSearchAssistant {
 
   async deinit() {
     await this.deleteFiles();
-    await this.deleteVectorStore();
     await this.deleteAssistant();
   }
 
@@ -180,16 +178,6 @@ export class FileSearchAssistant {
       consola.warn("No files uploaded");
     }
 
-    const vectorStore = await azureOpenai.beta.vectorStores.create({
-      name: this.name,
-      file_ids: this.uploadedFiles.map((file) => file.id),
-    });
-    consola
-      .withTag(vectorStore.id)
-      .debug(`Vector store ${vectorStore.id}: ${vectorStore.name} created`);
-    consola.withTag(vectorStore.id).verbose(vectorStore);
-    this.vectorStore = vectorStore;
-
     const retryCount = (await argv).retryCount as number;
     const retryMaxDelay = (await argv).retryMaxDelay as number;
     const assistant = await backOff(
@@ -207,7 +195,14 @@ export class FileSearchAssistant {
           ],
           tool_resources: {
             file_search: {
-              vector_store_ids: [vectorStore.id],
+              vector_stores: [
+                {
+                  file_ids: this.uploadedFiles.map((file) => file.id),
+                  metadata: {
+                    name: this.name,
+                  },
+                },
+              ],
             },
           },
           model: this.llmModel ?? (await argv).llmModel,
@@ -231,8 +226,6 @@ export class FileSearchAssistant {
     consola.withTag(assistant.id).debug(`Assistant ${assistant.id} created`);
     consola.withTag(assistant.id).verbose(assistant);
     this.assistant = assistant;
-
-    await this.waitUntilVectorStoreReady();
   }
 
   private async deleteAssistant() {
@@ -244,49 +237,6 @@ export class FileSearchAssistant {
     await azureOpenai.beta.assistants.del(assistant_id).then((result) => {
       consola.withTag(assistant_id).debug(`Assistant ${assistant_id} deleted`);
       this.assistant = undefined;
-    });
-  }
-
-  private async waitUntilVectorStoreReady() {
-    if (!this.vectorStore) {
-      throw new Error("Vector store is not initialized");
-    }
-
-    let vectorStore = await azureOpenai.beta.vectorStores.retrieve(
-      this.vectorStore.id
-    );
-
-    const bar = new SingleBar({
-      format: `${this.vectorStore?.id} [{bar}] {percentage}% | ETA: {eta}s | {value}/{total}`,
-      stopOnComplete: true,
-    });
-    bar.start(vectorStore.file_counts.total, 0);
-    while (vectorStore.file_counts.in_progress > 0) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      vectorStore = await azureOpenai.beta.vectorStores.retrieve(
-        this.vectorStore.id
-      );
-      bar.update(
-        vectorStore.file_counts.total - vectorStore.file_counts.in_progress
-      );
-    }
-    bar.stop(
-      `${this.vectorStore?.id}: ${this.vectorStore?.name}: file processed`
-    );
-  }
-
-  private async deleteVectorStore() {
-    if (!this.vectorStore) {
-      throw new Error("Vector store is not initialized");
-    }
-
-    const vectorStore_id = this.vectorStore.id;
-    await azureOpenai.beta.vectorStores.del(vectorStore_id).then((result) => {
-      consola
-        .withTag(vectorStore_id)
-        .debug(`Vector store ${vectorStore_id} deleted`);
-      consola.withTag(vectorStore_id).verbose("Vector store delete", result);
-      this.vectorStore = undefined;
     });
   }
 
