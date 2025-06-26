@@ -180,35 +180,45 @@ export class FileSearchAssistant {
 
     const retryCount = (await argv).retryCount as number;
     const retryMaxDelay = (await argv).retryMaxDelay as number;
-    const assistant = await backOff(
-      async () => {
-        return await azureOpenai.beta.assistants.create({
-          instructions: this.instructions,
-          name: this.name,
-          tools: [
+    const model = this.llmModel ?? (await argv).llmModel;
+    // o系モデル判定
+    const oModels = ["o1", "o3-mini"];
+    const isOModel = oModels.includes(model);
+    const basePayload: any = {
+      instructions: this.instructions,
+      name: this.name,
+      tools: [
+        {
+          type: "file_search",
+          file_search: {
+            max_num_results: 50, // this is the maximum number for gpt-4*
+          },
+        },
+      ],
+      tool_resources: {
+        file_search: {
+          vector_stores: [
             {
-              type: "file_search",
-              file_search: {
-                max_num_results: 50, // this is the maximum number for gpt-4*
+              file_ids: this.uploadedFiles.map((file) => file.id),
+              metadata: {
+                name: this.name,
               },
             },
           ],
-          tool_resources: {
-            file_search: {
-              vector_stores: [
-                {
-                  file_ids: this.uploadedFiles.map((file) => file.id),
-                  metadata: {
-                    name: this.name,
-                  },
-                },
-              ],
-            },
-          },
-          model: this.llmModel ?? (await argv).llmModel,
-          temperature: this.temperature,
-          top_p: this.topP,
-        });
+        },
+      },
+      model,
+    };
+    if (isOModel) {
+      basePayload.reasoning_effort = "high";
+      // temperature/top_pは付与しない
+    } else {
+      basePayload.temperature = this.temperature;
+      basePayload.top_p = this.topP;
+    }
+    const assistant = await backOff(
+      async () => {
+        return await azureOpenai.beta.assistants.create(basePayload);
       },
       {
         numOfAttempts: retryCount,
@@ -217,12 +227,10 @@ export class FileSearchAssistant {
           consola.error(
             `Failed to create assistant after ${attempt} attempts: ${e}\nretrying...`
           );
-
           return true;
         },
       }
     );
-
     consola.withTag(assistant.id).debug(`Assistant ${assistant.id} created`);
     consola.withTag(assistant.id).verbose(assistant);
     this.assistant = assistant;

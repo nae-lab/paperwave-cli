@@ -145,3 +145,9 @@ downloads/**
 .DS_Store
 scripts/create-gce-with-container.sh
 scripts/batch.sh
+
+# Cursor
+.cursorrules/
+.cursor/
+.specstory/
+.cursorindexingignore

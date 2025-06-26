@@ -175,7 +175,8 @@ export class AudioGenerator {
       ffmpegPath,
       `-i "${outputWavFilePath}"`,
       // Audio filters for quality improvement
-      `-af "highpass=f=80,lowpass=f=8000,volume=0.8,compand=0.3|0.3:1|1:-90/-60|-60/-40|-40/-30|-20/-20:6:0:-90:0.2"`,
+      // First convert mono to stereo, then apply compand with proper channel configuration
+      `-af "highpass=f=80,lowpass=f=8000,volume=0.8,pan=stereo|c0=c0|c1=c0,compand=0.3|0.3:1|1:-90/-60|-60/-40|-40/-30|-20/-20:6:0:-90:0.2"`,
       // High quality MP3 encoding
       `-codec:a libmp3lame`,
       `-b:a 320k`, // High bitrate for best quality

@@ -75,12 +75,31 @@ export class ChatCompletion {
       content: message,
     });
 
-    const stream = await azureOpenai.chat.completions.create({
+    const model = this.options?.model ?? (await argv).llmModel;
+    const oModels = ["o1", "o3-mini"];
+    const isOModel = oModels.includes(model);
+    const basePayload: any = {
       messages: this.messages,
-      model: this.options?.model ?? (await argv).llmModel,
+      model,
       stream: true,
-      ...this.options,
-    });
+    };
+    if (isOModel) {
+      basePayload.reasoning_effort = "high";
+      // temperature/top_pは付与しない
+    } else {
+      if (this.options?.temperature !== undefined)
+        basePayload.temperature = this.options.temperature;
+      if (this.options?.top_p !== undefined)
+        basePayload.top_p = this.options.top_p;
+    }
+    // その他のオプションを追加
+    if (this.options) {
+      for (const [key, value] of Object.entries(this.options)) {
+        if (["model", "temperature", "top_p"].includes(key)) continue;
+        basePayload[key] = value;
+      }
+    }
+    const stream = await azureOpenai.chat.completions.create(basePayload);
 
     let result: OpenAI.Chat.Completions.ChatCompletionMessageParam = {
       role: "assistant",
@@ -92,32 +111,50 @@ export class ChatCompletion {
     spinnies?.add(spinnieName, { text: `${spinnieDisplayName}: start` });
 
     let snapshot_length = 0;
-    for await (const chunk of stream) {
-      if (spinnieDisplayName === undefined) {
-        spinnieDisplayName = chunk.id;
-        spinnies?.update(spinnieName, {
-          text: `${spinnieDisplayName}: ${result.content}`,
-        });
+    // for-await-ofでイテレート可能か判定
+    if (
+      typeof stream === "object" &&
+      stream !== null &&
+      typeof (stream as any)[Symbol.asyncIterator] === "function"
+    ) {
+      for await (const chunk of stream as any) {
+        if (spinnieDisplayName === undefined) {
+          spinnieDisplayName = (chunk as any).id;
+          spinnies?.update(spinnieName, {
+            text: `${spinnieDisplayName}: ${result.content}`,
+          });
+        }
+        result.content += (chunk as any).choices?.[0]?.delta?.content ?? "";
+        if ((chunk as any).choices?.[0]?.finish_reason === "content_filter") {
+          consola.warn("Text generation stopped due to content filter");
+          break;
+        } else if ((chunk as any).choices?.[0]?.finish_reason === "length") {
+          consola.warn("Text generation stopped due to length");
+          break;
+        }
+        if ((result.content?.length ?? 0) - snapshot_length > 30) {
+          snapshot_length = result.content?.length ?? 0;
+          spinnies?.update(spinnieName, {
+            text: `${spinnieDisplayName}: ${result.content
+              ?.toString()
+              .slice(-60)
+              .replace(/\s/g, " ")}`,
+          });
+        }
       }
-
-      result.content += chunk.choices?.[0]?.delta?.content ?? "";
-
-      if (chunk.choices?.[0]?.finish_reason === "content_filter") {
-        consola.warn("Text generation stopped due to content filter");
-        break;
-      } else if (chunk.choices?.[0]?.finish_reason === "length") {
-        consola.warn("Text generation stopped due to length");
-        break;
-      }
-
-      if ((result.content?.length ?? 0) - snapshot_length > 30) {
-        snapshot_length = result.content?.length ?? 0;
-        spinnies?.update(spinnieName, {
-          text: `${spinnieDisplayName}: ${result.content
-            ?.toString()
-            .slice(-60)
-            .replace(/\s/g, " ")}`,
-        });
+    } else {
+      // ストリームでない場合（o系モデル+reasoning時など）
+      const choices = (stream as any).choices;
+      if (choices && Array.isArray(choices) && choices[0]?.message?.content) {
+        result.content = choices[0].message.content;
+      } else if (
+        choices &&
+        Array.isArray(choices) &&
+        choices[0]?.delta?.content
+      ) {
+        result.content = choices[0].delta.content;
+      } else {
+        result.content = "";
       }
     }
 
