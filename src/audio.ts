@@ -50,6 +50,11 @@ export const TurnSchema = Type.Object(
     text: Type.String({
       description: "speech text",
     }),
+    previousTurnText: Type.Optional(
+      Type.String({
+        description: "previous turn text for context-aware voice adjustment",
+      })
+    ),
   },
   {
     description: "A turn in the script",
@@ -124,7 +129,17 @@ export class AudioGenerator {
           this.workDir,
           `speech_${indexPadded}.wav`
         );
-        await synthesizeSpeech(turn.text, turn.voice, speechFilename);
+
+        // 前のターンのテキストを取得（最初のターンの場合はundefined）
+        const previousTurnText =
+          index > 0 ? this.script[index - 1].text : undefined;
+
+        await synthesizeSpeech(
+          turn.text,
+          turn.voice,
+          speechFilename,
+          previousTurnText
+        );
         audioSegments.push(speechFilename);
         consola.debug(`Speech segment ${index} synthesized.`);
         bar.increment(1, { filename: speechFilename });
