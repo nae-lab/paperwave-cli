@@ -29,6 +29,7 @@ import { db, bucket } from "./firebase";
 import { consola, getLogs } from "./logging";
 import { Episode, RecordingOptions, episodeDataConverter } from "./episodes";
 import { backOff } from "exponential-backoff";
+import { sendRetryNotification, sendFinalFailureNotification } from "./slack";
 
 console.log("EPISODES_COLLECTION_ID:", process.env.EPISODES_COLLECTION_ID);
 const COLLECTION_ID = process.env.EPISODES_COLLECTION_ID || "episodes";
@@ -83,6 +84,17 @@ async function processRecordingOptions(options: any) {
           consola.warn(
             `Failed to download papers after ${attempt} attempts: ${e}`
           );
+
+          // Send Slack notification on retry
+          sendRetryNotification("論文ファイルダウンロード", e, attempt).catch(
+            (notificationError) => {
+              consola.error(
+                "Failed to send Slack retry notification:",
+                notificationError
+              );
+            }
+          );
+
           // Only retry on network errors or Firebase Storage errors
           return (
             e.code === "ECONNRESET" ||
@@ -104,6 +116,17 @@ async function processRecordingOptions(options: any) {
           consola.warn(
             `Failed to download BGM after ${attempt} attempts: ${e}`
           );
+
+          // Send Slack notification on retry
+          sendRetryNotification("BGMファイルダウンロード", e, attempt).catch(
+            (notificationError) => {
+              consola.error(
+                "Failed to send Slack retry notification:",
+                notificationError
+              );
+            }
+          );
+
           // Only retry on network errors or Firebase Storage errors
           return (
             e.code === "ECONNRESET" ||
@@ -133,6 +156,17 @@ async function processRecordingOptions(options: any) {
           consola.warn(
             `Failed to process recording after ${attempt} attempts: ${e}`
           );
+
+          // Send Slack notification on retry
+          sendRetryNotification("収録処理", e, attempt).catch(
+            (notificationError) => {
+              consola.error(
+                "Failed to send Slack retry notification:",
+                notificationError
+              );
+            }
+          );
+
           // Retry on network errors, OpenAI API errors, and program generation failures
           return (
             e.code === "ECONNRESET" ||
@@ -163,6 +197,19 @@ async function processRecordingOptions(options: any) {
     return processedURL;
   } catch (error) {
     consola.error("Fatal error in processRecordingOptions:", error);
+
+    // Send final failure notification to Slack
+    sendFinalFailureNotification(
+      "全体的な収録処理",
+      error as Error,
+      options.retryCount || 3
+    ).catch((notificationError) => {
+      consola.error(
+        "Failed to send Slack final failure notification:",
+        notificationError
+      );
+    });
+
     throw error; // Re-throw the error to be handled by handleNewProgram
   }
 }
