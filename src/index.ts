@@ -133,11 +133,24 @@ async function processRecordingOptions(options: any) {
           consola.warn(
             `Failed to process recording after ${attempt} attempts: ${e}`
           );
-          // Only retry on specific errors that might be temporary
+          // Retry on network errors, OpenAI API errors, and program generation failures
           return (
             e.code === "ECONNRESET" ||
             e.code === "ETIMEDOUT" ||
-            e.message?.includes("socket hang up")
+            e.message?.includes("socket hang up") ||
+            e.message?.includes(
+              "The server had an error processing your request"
+            ) ||
+            e.message?.includes(
+              "Program writer did not return a valid program"
+            ) ||
+            e.message?.includes(
+              "Script writer did not return a valid script"
+            ) ||
+            e.message?.includes("500") || // OpenAI API 500 errors
+            e.message?.includes("502") || // Bad Gateway
+            e.message?.includes("503") || // Service Unavailable
+            e.message?.includes("504") // Gateway Timeout
           );
         },
       }
