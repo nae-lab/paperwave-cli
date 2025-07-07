@@ -20,11 +20,37 @@
 import { AzureOpenAI } from "openai";
 import OpenAI from "openai";
 
-export const azureOpenai = new AzureOpenAI({
-  apiVersion: process.env.AZURE_OPENAI_API_VERSION,
-  apiKey: process.env.AZURE_OPENAI_API_KEY,
-  endpoint: process.env.AZURE_OPENAI_ENDPOINT,
-});
+// Sweden Central configuration
+const swedenCentralConfig = {
+  apiVersion: process.env.AZURE_SWEDEN_CENTRAL_OPENAI_API_VERSION,
+  apiKey: process.env.AZURE_SWEDEN_CENTRAL_OPENAI_API_KEY,
+  endpoint: process.env.AZURE_SWEDEN_CENTRAL_OPENAI_ENDPOINT,
+};
+
+// East US2 configuration
+const eastUS2Config = {
+  apiVersion: process.env.AZURE_EAST_US2_OPENAI_API_VERSION,
+  apiKey: process.env.AZURE_EAST_US2_OPENAI_API_KEY,
+  endpoint: process.env.AZURE_EAST_US2_OPENAI_ENDPOINT,
+};
+
+// Function to get a random Azure OpenAI instance
+export function getRandomAzureOpenAI(): AzureOpenAI {
+  const useSweden = Math.random() < 0.5;
+  const config = useSweden ? swedenCentralConfig : eastUS2Config;
+
+  return new AzureOpenAI(config);
+}
+
+// Legacy export for backward compatibility (uses Sweden Central by default)
+// Initialize lazily to avoid errors when environment variables are not set
+let _azureOpenai: AzureOpenAI | undefined;
+export const azureOpenai = (() => {
+  if (!_azureOpenai) {
+    _azureOpenai = new AzureOpenAI(swedenCentralConfig);
+  }
+  return _azureOpenai;
+})();
 
 export const azureTTS = new AzureOpenAI({
   apiVersion: process.env.AZURE_OPENAI_TTS_API_VERSION,

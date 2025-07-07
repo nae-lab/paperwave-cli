@@ -21,7 +21,8 @@ import OpenAI from "openai";
 import { ChatCompletionCreateParamsStreaming } from "openai/resources/index";
 import { Stream } from "openai/streaming";
 
-import { azureOpenai } from "../openai";
+import { getRandomAzureOpenAI } from "../openai";
+import { AzureOpenAI } from "openai";
 import { consola, runId } from "../logging";
 import { spinnies } from "../spinnies";
 import { argv } from "../args";
@@ -43,6 +44,7 @@ export class ChatCompletion {
   options?: ChatCompletionStreamingOptions;
   retryCount: number = 5;
   retryMaxDelay: number = 150000;
+  private azureOpenAIClient: AzureOpenAI;
 
   constructor(systemPrompt: string, options?: ChatCompletionOptions) {
     this.systemPrompt = systemPrompt;
@@ -56,6 +58,8 @@ export class ChatCompletion {
       : undefined;
     this.retryCount = options?.retryCount ?? this.retryCount;
     this.retryMaxDelay = options?.retryMaxDelay ?? this.retryMaxDelay;
+    // Initialize with a random region client that will be used consistently
+    this.azureOpenAIClient = getRandomAzureOpenAI();
   }
 
   reset() {
@@ -99,7 +103,9 @@ export class ChatCompletion {
         basePayload[key] = value;
       }
     }
-    const stream = await azureOpenai.chat.completions.create(basePayload);
+    const stream = await this.azureOpenAIClient.chat.completions.create(
+      basePayload
+    );
 
     let result: OpenAI.Chat.Completions.ChatCompletionMessageParam = {
       role: "assistant",

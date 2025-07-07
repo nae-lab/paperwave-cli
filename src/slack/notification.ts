@@ -24,6 +24,88 @@ const CHANNEL_ID = process.env.SLACK_ALERT_CHANNEL_ID || "";
 
 let slackClient: WebClient | null = null;
 
+/**
+ * エラーから詳細情報を抽出するヘルパー関数
+ * ネストしたエラーメッセージやスタックトレースも含める
+ */
+function extractErrorDetails(error: Error): {
+  message: string;
+  details: string;
+  stack?: string;
+} {
+  const messages: string[] = [];
+  const details: string[] = [];
+  
+  // 現在のエラーメッセージを追加
+  if (error.message) {
+    messages.push(error.message);
+  }
+  
+  // エラーコードやタイプなどの詳細情報を収集
+  const errorObj = error as any;
+  if (errorObj.code) {
+    details.push(`Code: ${errorObj.code}`);
+  }
+  if (errorObj.type) {
+    details.push(`Type: ${errorObj.type}`);
+  }
+  if (errorObj.status) {
+    details.push(`Status: ${errorObj.status}`);
+  }
+  if (errorObj.statusText) {
+    details.push(`Status Text: ${errorObj.statusText}`);
+  }
+  
+  // OpenAI API特有のエラー情報を抽出
+  if (errorObj.error) {
+    if (typeof errorObj.error === 'string') {
+      messages.push(errorObj.error);
+    } else if (typeof errorObj.error === 'object') {
+      if (errorObj.error.message) {
+        messages.push(errorObj.error.message);
+      }
+      if (errorObj.error.code) {
+        details.push(`Error Code: ${errorObj.error.code}`);
+      }
+      if (errorObj.error.type) {
+        details.push(`Error Type: ${errorObj.error.type}`);
+      }
+    }
+  }
+  
+  // 原因となったエラーを再帰的に処理 (error.cause)
+  let currentError = error as any;
+  let depth = 0;
+  const maxDepth = 5; // 無限ループを防ぐ
+  
+  while (currentError.cause && depth < maxDepth) {
+    depth++;
+    const cause = currentError.cause as any;
+    if (cause.message) {
+      messages.push(`└─ Caused by: ${cause.message}`);
+    }
+    
+    if (cause.code) {
+      details.push(`Cause Code: ${cause.code}`);
+    }
+    if (cause.status) {
+      details.push(`Cause Status: ${cause.status}`);
+    }
+    
+    currentError = cause;
+  }
+  
+  // 複数のエラーメッセージを結合
+  const combinedMessage = messages.join('\n');
+  const combinedDetails = details.join(', ');
+  
+  return {
+    message: combinedMessage || error.toString(),
+    details: combinedDetails,
+    stack: error.stack,
+  };
+}
+
 function getSlackClient(): WebClient | null {
   const token = process.env.SLACK_TOKEN;
 
@@ -54,49 +136,70 @@ export async function sendRetryNotification(
   }
 
   try {
+    const errorDetails = extractErrorDetails(error);
+
+    const blocks = [
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `🔄 *リトライ実行 - ${operation}*`,
+        },
+      },
+      {
+        type: "section",
+        fields: [
+          {
+            type: "mrkdwn",
+            text: `*リトライ回数:*\n${attempt}回目`,
+          },
+          {
+            type: "mrkdwn",
+            text: `*エラー詳細:*\n${errorDetails.details || "N/A"}`,
+          },
+        ],
+      },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `*エラーメッセージ:*\n\`\`\`${errorDetails.message}\`\`\``,
+        },
+      },
+    ];
+
+    // スタックトレースがある場合は追加（長すぎる場合は省略）
+    if (errorDetails.stack) {
+      const truncatedStack =
+        errorDetails.stack.length > 1000
+          ? errorDetails.stack.substring(0, 1000) + "...(truncated)"
+          : errorDetails.stack;
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `*スタックトレース:*\n\`\`\`${truncatedStack}\`\`\``,
+        },
+      });
+    }
+
+    blocks.push({
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text: `📅 ${new Date().toLocaleString("ja-JP", {
+            timeZone: "Asia/Tokyo",
+          })}`,
+        },
+      ],
+    } as any);
+
     const message = {
       channel: CHANNEL_ID,
       text: `📢 リトライ通知 - ${operation}`,
-      blocks: [
-        {
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: `🔄 *リトライ実行 - ${operation}*`,
-          },
-        },
-        {
-          type: "section",
-          fields: [
-            {
-              type: "mrkdwn",
-              text: `*リトライ回数:*\n${attempt}回目`,
-            },
-            {
-              type: "mrkdwn",
-              text: `*エラーコード:*\n${(error as any).code || "N/A"}`,
-            },
-          ],
-        },
-        {
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: `*エラーメッセージ:*\n\`\`\`${error.message}\`\`\``,
-          },
-        },
-        {
-          type: "context",
-          elements: [
-            {
-              type: "mrkdwn",
-              text: `📅 ${new Date().toLocaleString("ja-JP", {
-                timeZone: "Asia/Tokyo",
-              })}`,
-            },
-          ],
-        },
-      ],
+      blocks,
     };
 
     await client.chat.postMessage(message);
@@ -119,49 +222,70 @@ export async function sendFinalFailureNotification(
   }
 
   try {
+    const errorDetails = extractErrorDetails(error);
+
+    const blocks = [
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `❌ *処理失敗 - ${operation}*`,
+        },
+      },
+      {
+        type: "section",
+        fields: [
+          {
+            type: "mrkdwn",
+            text: `*総リトライ回数:*\n${totalAttempts}回`,
+          },
+          {
+            type: "mrkdwn",
+            text: `*エラー詳細:*\n${errorDetails.details || "N/A"}`,
+          },
+        ],
+      },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `*最終エラーメッセージ:*\n\`\`\`${errorDetails.message}\`\`\``,
+        },
+      },
+    ];
+
+    // スタックトレースがある場合は追加（長すぎる場合は省略）
+    if (errorDetails.stack) {
+      const truncatedStack =
+        errorDetails.stack.length > 1000
+          ? errorDetails.stack.substring(0, 1000) + "...(truncated)"
+          : errorDetails.stack;
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `*スタックトレース:*\n\`\`\`${truncatedStack}\`\`\``,
+        },
+      });
+    }
+
+    blocks.push({
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text: `📅 ${new Date().toLocaleString("ja-JP", {
+            timeZone: "Asia/Tokyo",
+          })}`,
+        },
+      ],
+    } as any);
+
     const message = {
       channel: CHANNEL_ID,
       text: `🚨 処理失敗 - ${operation}`,
-      blocks: [
-        {
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: `❌ *処理失敗 - ${operation}*`,
-          },
-        },
-        {
-          type: "section",
-          fields: [
-            {
-              type: "mrkdwn",
-              text: `*総リトライ回数:*\n${totalAttempts}回`,
-            },
-            {
-              type: "mrkdwn",
-              text: `*エラーコード:*\n${(error as any).code || "N/A"}`,
-            },
-          ],
-        },
-        {
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: `*最終エラーメッセージ:*\n\`\`\`${error.message}\`\`\``,
-          },
-        },
-        {
-          type: "context",
-          elements: [
-            {
-              type: "mrkdwn",
-              text: `📅 ${new Date().toLocaleString("ja-JP", {
-                timeZone: "Asia/Tokyo",
-              })}`,
-            },
-          ],
-        },
-      ],
+      blocks,
     };
 
     await client.chat.postMessage(message);

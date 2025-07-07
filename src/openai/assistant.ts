@@ -30,7 +30,8 @@ import {
 import CLIProgress from "cli-progress";
 import { randomUUID } from "crypto";
 
-import { azureOpenai } from "../openai";
+import { getRandomAzureOpenAI } from "../openai";
+import { AzureOpenAI } from "openai";
 import { parseJSON, extractJSONString } from "../json";
 import { consola, runId } from "../logging";
 import { spinnies } from "../spinnies";
@@ -61,6 +62,7 @@ export class FileSearchAssistant {
   llmModel?: string;
   retryCount?: number;
   retryMaxDelay?: number;
+  private azureOpenAIClient: AzureOpenAI;
 
   constructor(
     filePaths: string[],
@@ -77,6 +79,7 @@ export class FileSearchAssistant {
     this.llmModel = options?.llmModel;
     this.retryCount = options?.retryCount;
     this.retryMaxDelay = options?.retryMaxDelay;
+    this.azureOpenAIClient = getRandomAzureOpenAI();
   }
 
   async init() {
@@ -128,18 +131,18 @@ export class FileSearchAssistant {
     const retryMaxDelay = (await argv).retryMaxDelay as number;
     const file = await backOff(
       async () => {
-        return await azureOpenai.files
+        return await this.azureOpenAIClient.files
           .create({
             file: fs.createReadStream(absolutePath),
             purpose: "assistants",
           })
-          .then((result) => {
+          .then((result: any) => {
             consola.debug(
               `File ${filePath} uploaded and created with id ${result.id}`
             );
             return result;
           })
-          .catch((error) => {
+          .catch((error: any) => {
             consola.error(`Failed to upload file ${filePath}: ${error}`);
             throw error;
           });
@@ -165,7 +168,7 @@ export class FileSearchAssistant {
   private async deleteFiles() {
     const deletePromises = this.uploadedFiles.map(async (file) => {
       const fileId = file.id;
-      await azureOpenai.files.del(fileId).then((result) => {
+      await this.azureOpenAIClient.files.del(fileId).then((result: any) => {
         consola.debug(`File ${fileId} deleted`);
       });
     });
@@ -218,7 +221,7 @@ export class FileSearchAssistant {
     }
     const assistant = await backOff(
       async () => {
-        return await azureOpenai.beta.assistants.create(basePayload);
+        return await this.azureOpenAIClient.beta.assistants.create(basePayload);
       },
       {
         numOfAttempts: retryCount,
@@ -242,10 +245,14 @@ export class FileSearchAssistant {
     }
 
     const assistant_id = this.assistant.id;
-    await azureOpenai.beta.assistants.del(assistant_id).then((result) => {
-      consola.withTag(assistant_id).debug(`Assistant ${assistant_id} deleted`);
-      this.assistant = undefined;
-    });
+    await this.azureOpenAIClient.beta.assistants
+      .del(assistant_id)
+      .then((result: any) => {
+        consola
+          .withTag(assistant_id)
+          .debug(`Assistant ${assistant_id} deleted`);
+        this.assistant = undefined;
+      });
   }
 
   async runAssistant(
@@ -265,7 +272,7 @@ export class FileSearchAssistant {
       "Creating thread with messages: ",
       JSON.stringify(params, null, 2)
     );
-    const thread = await azureOpenai.beta.threads.create({
+    const thread = await this.azureOpenAIClient.beta.threads.create({
       messages: params.messages,
     });
     consola
@@ -308,7 +315,7 @@ export class FileSearchAssistant {
         .debug("Text generation stopped");
 
       // Retrieve all messages
-      const runResult = await azureOpenai.beta.threads.messages.list(
+      const runResult = await this.azureOpenAIClient.beta.threads.messages.list(
         thread.id,
         {
           order: "asc",
@@ -421,7 +428,10 @@ export class FileSearchAssistant {
     spinnieName?: string
   ): Promise<AssistantStream> {
     return new Promise((resolve, reject) => {
-      const stream = azureOpenai.beta.threads.runs.stream(threadId, body);
+      const stream = this.azureOpenAIClient.beta.threads.runs.stream(
+        threadId,
+        body
+      );
 
       stream.on("textCreated", (text) => {
         // consola.withTag(threadId).verbose("assistant > ");
