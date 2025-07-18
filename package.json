@@ -10,7 +10,14 @@
     "clean:files": "ts-node scripts/clean-files.ts",
     "paperwaveVersion": "ts-node scripts/dump-version.ts",
     "docker:build": "docker build --platform linux/amd64 . -t paperwave-server -t $(grep PAPERWAVE_DOCKER_REGISTRY .env | cut -d '=' -f2 | cut -d '\"' -f2):v$(ts-node scripts/dump-version.ts) -t $(grep PAPERWAVE_DOCKER_REGISTRY .env | cut -d '=' -f2 | cut -d '\"' -f2):latest",
-    "docker:push": "docker push $(grep PAPERWAVE_DOCKER_REGISTRY .env | cut -d '=' -f2 | cut -d '\"' -f2):v$(ts-node scripts/dump-version.ts) && docker push $(grep PAPERWAVE_DOCKER_REGISTRY .env | cut -d '=' -f2 | cut -d '\"' -f2):latest"
+    "docker:push": "docker push $(grep PAPERWAVE_DOCKER_REGISTRY .env | cut -d '=' -f2 | cut -d '\"' -f2):v$(ts-node scripts/dump-version.ts) && docker push $(grep PAPERWAVE_DOCKER_REGISTRY .env | cut -d '=' -f2 | cut -d '\"' -f2):latest",
+    "azure:container:help": "scripts/azure-container-help.sh",
+    "azure:container:create": "scripts/create-azure-container.sh",
+    "azure:container:log": "scripts/azure-container-logs.sh",
+    "azure:container:list": "scripts/azure-container-list.sh",
+    "azure:container:status": "scripts/azure-container-status.sh",
+    "azure:container:delete": "scripts/azure-container-delete.sh",
+    "debug:env": "node scripts/env-utils.js"
   },
   "keywords": [],
   "author": "",
